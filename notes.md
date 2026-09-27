@@ -6,6 +6,5 @@
 # Task fields
 - Title = short description of task
 - Optional: longer description including with
-- date (due date)
 - Priority label
-- Priority order (relative to other tasks)
+- Task group (custom)
