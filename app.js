@@ -16,28 +16,41 @@ let nextTaskId = 1;
 
 // Find the form and list in index.html so this code can respond to the form and update the page.
 const taskForm = document.querySelector('#add-task');
-const taskList = document.querySelector('#task-list');
+const allTaskList = document.querySelector('#all-task-list');
+const groupListContainer = document.querySelector('#group-list'); // container for group buttons and selected group tasks
+const priorityTaskLists = {
+  high: document.querySelector('#high-priorities-task-list'),
+  mid: document.querySelector('#mid-priorities-task-list'),
+  low: document.querySelector('#low-priorities-task-list'),
+};
 const groupSelect = document.querySelector('#group');
 const newGroupInput = document.querySelector('#new-group');
 const addNewGroupValue = '__add_new_group__';
+let selectedGroup = null; // the name of the group currently being viewed, or null if no group is selected
+
+// Return the unique groups that still have at least one unfinished task.
+function getActiveGroupNames() {
+  return [...new Set(
+    tasks
+      .filter((task) => !task.done && task.group)
+      .map((task) => task.group)
+  )].sort((first, second) => first.localeCompare(second));
+}
 
 // Show groups that belong to unfinished tasks, plus options to skip or add a group.
 function renderGroupOptions() {
   const selectedGroup = groupSelect.value;  // remember the user's selection so it can be restored after rebuilding the dropdown
-  // Use a Set to get unique group names, then sort them alphabetically.
-  const activeGroups = [...new Set( tasks
-      .filter((task) => !task.done && task.group)
-      .map((task) => task.group)  // get the group name of each unfinished task
-  )].sort((first, second) => first.localeCompare(second));
+  const activeGroups = getActiveGroupNames();
 
   groupSelect.replaceChildren();
 
-  // create an option for tasks that don't belong to a group, value is emmpty string so it can be distinguished from the "Add new group..." option
+  // create an <option> for tasks that don't belong to a group, value is emmpty string so it can be distinguished from the "Add new group..." option
   const noGroupOption = document.createElement('option');
   noGroupOption.value = '';
   noGroupOption.textContent = 'No group';
   groupSelect.append(noGroupOption);  // add the "No group" option to the dropdown
 
+  // create an <option> for each existing group and add it to the dropdown
   activeGroups.forEach((groupName) => {
     const option = document.createElement('option');
     option.value = groupName;
@@ -45,13 +58,57 @@ function renderGroupOptions() {
     groupSelect.append(option);
   });
 
+  // create an <option> for adding a new group and add it to the dropdown
   const addGroupOption = document.createElement('option');
   addGroupOption.value = addNewGroupValue;
   addGroupOption.textContent = 'Add new group...';
   groupSelect.append(addGroupOption);
 
+  // Restore the user's selection if it's still valid, otherwise select the "No group" option.
   const validSelections = ['', addNewGroupValue, ...activeGroups];
   groupSelect.value = validSelections.includes(selectedGroup) ? selectedGroup : '';
+}
+
+// Show group label buttons, or show the selected group's tasks with a way back.
+function renderGroupView() {
+  const activeGroups = getActiveGroupNames();
+  groupListContainer.replaceChildren();
+
+  // If a group is selected and it still has unfinished tasks, show its tasks with a back button.
+  if (selectedGroup && activeGroups.includes(selectedGroup)) {
+    // create a <button> to go back to the group list and add it to the page
+    const backButton = document.createElement('button');
+    backButton.type = 'button';
+    backButton.textContent = 'Back to groups';
+    backButton.addEventListener('click', () => {
+      selectedGroup = null;
+      renderGroupView();
+    });
+
+    // Show the selected group's name and its tasks.
+    const heading = document.createElement('h3'); // create h2 heading in html file for the selected group name
+    heading.textContent = selectedGroup;
+
+    // create a <ul> to hold the tasks in the selected group and update html
+    const taskList = document.createElement('ul');
+    const groupTasks = tasks.filter((task) => task.group === selectedGroup);
+    groupListContainer.append(backButton, heading, taskList);
+    renderTasks(taskList, groupTasks);
+    return;
+  }
+
+  selectedGroup = null;
+  // If no group is selected, show links to view each active group
+  activeGroups.forEach((groupName) => {
+    const groupButton = document.createElement('button');
+    groupButton.type = 'button';
+    groupButton.textContent = groupName;
+    groupButton.addEventListener('click', () => {
+      selectedGroup = groupName;
+      renderGroupView();
+    });
+    groupListContainer.append(groupButton);
+  });
 }
 
 // Show and require the text field only when the user chooses to add a group.
@@ -69,11 +126,12 @@ function updateNewGroupInput() {
   }
 }
 
-// Rebuild the visible task list from the current task data.
-function renderTasks() {
+// Put the given tasks into the given list on the page.
+function renderTasks(taskList, tasksToRender) {
   taskList.replaceChildren();
 
-  tasks.forEach((task) => {
+  // Make one list item for every task in this view.
+  tasksToRender.forEach((task) => {
     const listItem = document.createElement('li');
     listItem.dataset.taskId = String(task.id);
 
@@ -83,7 +141,7 @@ function renderTasks() {
     doneCheckbox.checked = task.done;
     doneCheckbox.addEventListener('change', () => {
       task.done = doneCheckbox.checked;
-      renderTasks();
+      renderTaskViews();
       renderGroupOptions();
     });
 
@@ -94,12 +152,23 @@ function renderTasks() {
   });
 }
 
+// Filter the tasks for each tab, then use renderTasks to display each subset.
+function renderTaskViews() {
+  renderTasks(allTaskList, tasks);
+  renderGroupView();
+
+  Object.entries(priorityTaskLists).forEach(([priority, taskList]) => {
+    const priorityTasks = tasks.filter((task) => task.priority === priority);
+    renderTasks(taskList, priorityTasks);
+  });
+}
+
 // Update the new group input field whenever the user changes the group selection.
 groupSelect.addEventListener('change', updateNewGroupInput);
 newGroupInput.addEventListener('input', () => newGroupInput.setCustomValidity(''));
 
 renderGroupOptions();
-renderTasks();
+renderTaskViews();
 updateNewGroupInput();
 
 // Run this function whenever the user submits the task form.
@@ -135,7 +204,7 @@ taskForm.addEventListener('submit', (event) => {
   nextTaskId += 1;
   tasks.push(task);
 
-  renderTasks();
+  renderTaskViews();
   renderGroupOptions();
 
   // Clear the inputs so the form is ready for another task.

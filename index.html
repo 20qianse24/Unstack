@@ -74,21 +74,33 @@
         <button type="submit">Add Task</button>
     </form>
 
+    <!--Task viewing tabs-->
     <main>
-      <!--Task viewing tabs-->
+      <!--All tasks-->
       <section class="task-tab" id="tab-all">
         <h2 id="tasks-heading">All</h2>
-        <ul id="task-list"></ul>
+        <ul id="all-task-list"></ul>
       </section>
 
+      <!--Group labels of tasks, click to see tasks in a group-->
       <section class="task-tab" id="tab-groups">
         <h2 id="tasks-heading">Groups</h2>
-        <ul id="task-list"></ul>
+        <!--Display group labels, click to see tasks in that group-->
+        <div id="group-list"></div>
       </section>
 
+      <!--Display by priority level-->
       <section class="task-tab" id="tab-priorities">
         <h2 id="tasks-heading">Priorities</h2>
-        <ul id="task-list"></ul>
+        <div class="priority-section" id="high-priority">
+          <ul id="high-priorities-task-list"></ul>
+        </div>
+        <div class="priority-section" id="mid-priority">
+          <ul id="mid-priorities-task-list"></ul>
+        </div>
+        <div class="priority-section" id="low-priority">  
+          <ul id="low-priorities-task-list"></ul>
+        </div>
       </section>
     </main>
 
