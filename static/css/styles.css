@@ -1,6 +1,25 @@
 
+body {
+    display: flex;
+    flex-direction: column;
+    min-height: 100vh;
+    align-items: center;
+}
+
+main {
+    flex: 1;
+}
+
+/*
+Footer Styling
+*/
+footer {
+    padding: 1rem;
+}
   
-/*Search icon styling*/
+/*
+Search icon styling
+*/
 .icon-btn {
     background: none;
     border: 0;

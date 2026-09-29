@@ -25,9 +25,9 @@
     <h1>UNSTACK</h1>
     <header>
       <!--Nagivation tabs-->
-      <div class="tabs">
-        <button data-tab="tab-all">All</button>
-        <button data-tab="tab-priorities" class="active">Priorities</button>
+      <div class="tab-buttons">
+        <button data-tab="tab-all" class="active">All</button>
+        <button data-tab="tab-priorities">Priorities</button>
         <button data-tab="tab-groups">Groups</button>
       </div>
       <!--Search button-->
@@ -75,10 +75,25 @@
     </form>
 
     <main>
-      <section>
-        <h2 id="tasks-heading">Tasks</h2>
+      <!--Task viewing tabs-->
+      <section class="task-tab" id="tab-all">
+        <h2 id="tasks-heading">All</h2>
+        <ul id="task-list"></ul>
+      </section>
+
+      <section class="task-tab" id="tab-groups">
+        <h2 id="tasks-heading">Groups</h2>
+        <ul id="task-list"></ul>
+      </section>
+
+      <section class="task-tab" id="tab-priorities">
+        <h2 id="tasks-heading">Priorities</h2>
         <ul id="task-list"></ul>
       </section>
     </main>
+
+    <footer>
+      <button id="new-task">+</button>
+    </footer>
 
 </body>

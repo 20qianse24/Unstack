@@ -94,6 +94,7 @@ function renderTasks() {
   });
 }
 
+// Update the new group input field whenever the user changes the group selection.
 groupSelect.addEventListener('change', updateNewGroupInput);
 newGroupInput.addEventListener('input', () => newGroupInput.setCustomValidity(''));
 
@@ -113,6 +114,7 @@ taskForm.addEventListener('submit', (event) => {
     ? newGroupInput.value.trim()
     : groupSelect.value;
 
+  // Validate the new group name if the user selected "Add new group..." and didn't enter a name or entered the placeholder text
   if (groupSelect.value === addNewGroupValue && (!groupName || groupName === addNewGroupValue)) {
     newGroupInput.setCustomValidity('Enter a valid group name.');
     newGroupInput.reportValidity();
@@ -142,11 +144,31 @@ taskForm.addEventListener('submit', (event) => {
 });
 
 
-// Render "all" tab
-function renderAllTab() {
+// Dynamic tab switching, default to "All" tab if no tab is active.
+// Listen for clicks on the tab buttons and switch the visible tab.
+
+// Find the tab buttons and task tabs in index.html to respond to buttons and update page.
+const tabButtons = document.querySelectorAll('.tab-buttons button[data-tab]');
+const taskTabs = document.querySelectorAll('.task-tab');
+
+function showTab(button) {
+  const targetTabId = button.dataset.tab; // Get id of tab to /make visible from button's data-tab attribute
+  const targetTab = document.getElementById(targetTabId);
+
+  taskTabs.forEach((tab) => {
+    tab.hidden = tab !== targetTab; // hide all tabs except the one that matches the button's data-tab
+  });
+  tabButtons.forEach((tabButton) => {
+    tabButton.classList.toggle('active', tabButton === button); // add 'active' class to the clicked button and remove it from others
+  });
 }
 
+// Add click event listeners to each tab button to show the corresponding tab when clicked.
+tabButtons.forEach((button) => {
+  button.addEventListener('click', () => {
+    showTab(button);
+  });
+});
 
-// Dynamic tabs for task viewing
-const tabs = ["all", "groups", "priorities"];
-   function renderTabs() {
+const activeTabButton = [...tabButtons].find((button) => button.classList.contains('active')) ?? tabButtons[0];
+if (activeTabButton) showTab(activeTabButton);
