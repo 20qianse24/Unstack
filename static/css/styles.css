@@ -1,0 +1,19 @@
+
+  
+/*Search icon styling*/
+.icon-btn {
+    background: none;
+    border: 0;
+    padding: 0.4rem;
+    line-height: 0;
+}
+.icon-btn svg {
+    width: 24px;
+    height: 24px;
+    stroke: currentColor;
+    fill: none;
+    stroke-width: 1.8;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+    color:black;
+}

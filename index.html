@@ -8,7 +8,7 @@
     <meta name="apple-mobile-web-app-title" content="Unstack">
     <title>Unstack</title>
     <link type="text/css" rel="stylesheet" href="/static/css/styles.css">
-    <script src="app.js"></script>
+    <script src="app.js" defer></script>
     <link rel="manifest" href="manifest.json" />
     <!--App icon credit to https://www.flaticon.com/free-icon/sticky-note_9099135, allowing free personal and commercial use with credit-->
     <link rel="icon" href="./static/icons/ios/180.png" type="image/png">
@@ -23,9 +23,62 @@
 
 <body>
     <h1>UNSTACK</h1>
-    <script>
-    if ('serviceWorker' in navigator) {
-      navigator.serviceWorker.register('sw.js');
-    }
-  </script>
+    <header>
+      <!--Nagivation tabs-->
+      <div class="tabs">
+        <button data-tab="tab-all">All</button>
+        <button data-tab="tab-priorities" class="active">Priorities</button>
+        <button data-tab="tab-groups">Groups</button>
+      </div>
+      <!--Search button-->
+      <button class="icon-btn" id="toggle-search">
+        <svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="M20 20l-4-4"/></svg>
+      </button>
+    </header>
+
+    <form id="add-task">
+      <!--Get task title-->
+        <div class ="form-group">
+          <div class ="form-label"><label for="title">Task <span>*</span>:</label></div>
+          <div class ="form-element"><input type="text" name="title" id="title" placeholder="Enter task..." required></div>
+        </div>
+      <!--Get description/extra notes-->
+        <div class ="form-group">
+          <div class ="form-label"><label for="description">Extra Notes:</label></div>
+          <div class ="form-element"><input type="text" name="description" id="description" placeholder="Enter extra notes..."></div>
+        </div>
+      <!--Get priority label-->
+        <div class ="form-group">
+          <div class ="form-label"><label for="priority">Priority <span>*</span>:</label></div>
+          <div class ="form-element">
+            <select id="priority" name="priority" required>
+                  <option value="" selected disabled>Select a priority level</option>
+                  <option value="low">Low</option>
+                  <option value="mid">Medium</option>
+                  <option value="high">High</option>
+            </select>
+          </div>
+        </div>
+      <!--Get group label-->
+      <div class ="form-group">
+        <div class ="form-label"><label for="group">Task Group:</label></div>
+        <div class ="form-element">
+          <select id="group" name="group">
+            <option value="">No group</option>
+            <option value="__add_new_group__">Add new group...</option>
+          </select>
+          <input type="text" id="new-group" placeholder="New group name" hidden disabled>
+        </div>
+      </div>
+        <!--Submit button-->
+        <button type="submit">Add Task</button>
+    </form>
+
+    <main>
+      <section>
+        <h2 id="tasks-heading">Tasks</h2>
+        <ul id="task-list"></ul>
+      </section>
+    </main>
+
 </body>
