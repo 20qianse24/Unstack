@@ -14,14 +14,16 @@ const tasks = []; // an arrray of task objects
 loadTasks();
 
 // Give each new task the next id number, defaults to starting id 1 if no tasks exist yet
+let nextTaskId = 1;
 if (tasks.length > 0) {
   // can't use nextTaskId = tasks.length since length changes on deletion
   // instead find max id in tasks array and add 1 to it
   // ... is the spread operator, which spreads the array into individual values so Math.max can find the max value
   nextTaskId = Math.max(...tasks.map((task) => task.id)) + 1;
-} else {
-  nextTaskId = 1;
 }
+
+// call dialog setup when page first loads
+document.addEventListener('DOMContentLoaded', setupTaskOptionsDialog);
 
 // Find the form and list in index.html so this code can respond to the form and update the page.
 
@@ -153,17 +155,24 @@ function renderTasks(taskList, tasksToRender) {
   // Make one list item for every task in this view.
   // iterate over array of tasks to render and create a list <li> item for each task, then append it to the task list
   tasksToRender.forEach((task) => {
+     // store task id and title in a data attribute VARIABLE so it can be used later to identify the task when the user clicks on it
     const listItem = document.createElement('li');
-    listItem.dataset.taskId = String(task.id);  // store the task id in a data attribute so it can be used later to identify the task when the user clicks the checkbox
-     // add the "done" class to the list item so it can be styled differently in CSS
+    listItem.dataset.taskId = String(task.id);  // taskId is a variable that stores the task's id as a string so it can be used later to identify the task when the user clicks on it
+    listItem.dataset.taskTitle = task.title;
+
+    // add the "done" class to the list item so it can be styled differently in CSS
     if (task.done) {
       listItem.classList.add('done');
+      listItem.style.textDecoration = 'line-through';  // add a line-through style to the task title when it is marked as done
+    } else {
+      listItem.classList.add('dialog-trigger'); // add a class to the task so it can trigger the dialog box when clicked
     }
 
-    const label = document.createElement('label');  // create <label> element to hold checkbox and task title
+    //const label = document.createElement('label');  // create <label> element to hold checkbox and task title
     const doneCheckbox = document.createElement('input'); // create <input> element to hold checkbox for marking task as done
-    doneCheckbox.type = 'checkbox';
-    doneCheckbox.checked = task.done; // set the checkbox state to match the task's done property
+    doneCheckbox.type = 'checkbox'; // set the input type to checkbox so it can be used to mark tasks as done
+    doneCheckbox.checked = task.done; // set the checkbox state to match the task's current done property
+
     // when user clicks checkbox, do 3 things
     doneCheckbox.addEventListener('change', () => {
       task.done = doneCheckbox.checked; // update the task's done property to match the checkbox state
@@ -172,10 +181,20 @@ function renderTasks(taskList, tasksToRender) {
       saveTasks();
     });
 
-    label.append(doneCheckbox, document.createTextNode(` ${task.title} (${task.priority})`));
-    listItem.append(label);
+    listItem.addEventListener('click', (event) => {
+      if (event.target === doneCheckbox) {  // if the user clicked the checkbox, don't open the dialog box
+        return;
+      }
+      // else open dialog box, passing clicked list item as current target so the dialog box can get the task id and title from its data attributes
+      openDialog({ currentTarget: listItem });
+    });
 
-    taskList.append(listItem);
+    const taskText = document.createElement('span');
+    // $ is js string formatting syntax
+    taskText.textContent = ` ${task.title} (${task.priority})`; // add a space before the task title so it doesn't run into the checkbox, and show the task's priority in parentheses
+    listItem.append(doneCheckbox, taskText);  // append the checkbox and task title to the list item so they are displayed together
+
+    taskList.append(listItem);  // append the list item to the task list so it is displayed on the page
   });
 }
 
@@ -295,4 +314,66 @@ function loadTasks() {
     // spread operator ... is used to push each task object into the tasks array 
     tasks.push(...parsedTasks);  // i.e. tasks.push(task1, task2, task3, ...)
   }
+}
+
+// Define a SETUP function for dialog box to edit or delete a task when the user clicks on it.
+function setupTaskOptionsDialog() {
+  const taskOptions = document.getElementById('task-options');
+  const closeButton = document.getElementById('close-window');
+  const deleteButton = document.getElementById('delete-btn');
+  /////////// COMBACK ONCE ADD POPUP IS IMPLEMENTED ///////////
+  const editButton = document.getElementById('edit-btn');
+
+  // If any of the elements are missing, don't set up the dialog box.
+  if (!taskOptions || !closeButton || !deleteButton) {
+    return;
+  }
+
+  // Add event listeners to the buttons in the dialog box to close or delete or edit the task.
+  closeButton.addEventListener('click', () => {
+    taskOptions.close();
+  });
+
+  deleteButton.addEventListener('click', () => {
+    // Get the task id from the dialog box's data attribute and convert it to a number.
+    const currTaskId = Number(taskOptions.dataset.taskId);
+    // If the task id is not a valid number, do nothing.
+    if (!Number.isInteger(currTaskId)) {
+      return;
+    }
+    // Ask the user to confirm the deletion of the task. If they cancel, do nothing.
+    const confirmed = window.confirm('Delete this task?');
+    if (!confirmed) {
+      return;
+    }
+    // Find the index of the task in the tasks array by its id.
+    const currTaskIndex = tasks.findIndex((task) => task.id === currTaskId);
+    // If the task is not found, do nothing.
+    if (currTaskIndex === -1) {
+      taskOptions.close();
+      return;
+    }
+
+    tasks.splice(currTaskIndex, 1); // remove the 1 deleted task from the tasks array
+
+    saveTasks();
+    renderTaskViews();
+    renderGroupOptions();
+    taskOptions.close();  // close the dialog box after deleting the task
+  });
+}
+
+// Open the dialog box when the user clicks on a task, and populate it with the task's title and id.
+function openDialog(event) {
+  const taskOptions = document.getElementById('task-options');
+  const clickedTaskTitle = document.getElementById('clicked-task-title');
+  // If any of the elements are missing, do nothing.
+  if (!taskOptions || !clickedTaskTitle) {
+    return;
+  }
+
+  clickedTaskTitle.textContent = event.currentTarget.dataset.taskTitle; // set visible text
+  // data attribute was defined in renderTasks() when the list item was created, so it can be used here to identify the task when the user clicks on it
+  taskOptions.dataset.taskId = event.currentTarget.dataset.taskId;  // store task id in dialog box's data attribute so it can be used later to identify the task when the user clicks on it
+  taskOptions.showModal();
 }
