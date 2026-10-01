@@ -9,13 +9,25 @@ if ('serviceWorker' in navigator) {
 
 // Keep tasks in memory while this page is open. The type comment describes each task's fields.
 /** @type {{ id: number, done: boolean, title: string, description: string | null, priority: string, group: string | null }[]} */
-const tasks = [];
+const tasks = []; // an arrray of task objects
+// Load tasks from localStorage when the page loads, if any exist
+loadTasks();
 
-// Give each new task the next id number, starting at 1.
-let nextTaskId = 1;
+// Give each new task the next id number, defaults to starting id 1 if no tasks exist yet
+if (tasks.length > 0) {
+  // can't use nextTaskId = tasks.length since length changes on deletion
+  // instead find max id in tasks array and add 1 to it
+  // ... is the spread operator, which spreads the array into individual values so Math.max can find the max value
+  nextTaskId = Math.max(...tasks.map((task) => task.id)) + 1;
+} else {
+  nextTaskId = 1;
+}
 
 // Find the form and list in index.html so this code can respond to the form and update the page.
-const taskForm = document.querySelector('#add-task');
+
+// querySelectorAll is the browser's API for finding all elements that match a CSS selector, returning a NodeList of matching elements.
+// the browser gives you: document, window, navigator, localStorage
+const taskForm = document.querySelector('#add-task'); // uses the id of the form in index.html to find it
 const allTaskList = document.querySelector('#all-task-list');
 const groupListContainer = document.querySelector('#group-list'); // container for group buttons and selected group tasks
 const priorityTaskLists = {
@@ -23,28 +35,28 @@ const priorityTaskLists = {
   mid: document.querySelector('#mid-priorities-task-list'),
   low: document.querySelector('#low-priorities-task-list'),
 };
-const groupSelect = document.querySelector('#group');
+const groupSelect = document.querySelector('#group'); //
 const newGroupInput = document.querySelector('#new-group');
 const addNewGroupValue = '__add_new_group__';
-let selectedGroup = null; // the name of the group currently being viewed, or null if no group is selected
+let selectedGroup = null; // the name of the group currently being viewed, null if no group is selected
 
 // Return the unique groups that still have at least one unfinished task.
 function getActiveGroupNames() {
-  return [...new Set(
+  return [...new Set( // create a Set to only store UNIQUE group names from tasks array
     tasks
-      .filter((task) => !task.done && task.group)
-      .map((task) => task.group)
-  )].sort((first, second) => first.localeCompare(second));
+      .filter((task) => !task.done && task.group) // only keep tasks that are ongoing and have a group name
+      .map((task) => task.group)  // return a list of group names that are unique and have at least one unfinished task
+  )].sort((first, second) => first.localeCompare(second));  // sort the group names alphabetically
 }
 
-// Show groups that belong to unfinished tasks, plus options to skip or add a group.
+// Show groups that belong to ongoing tasks, plus options to skip or add a group.
 function renderGroupOptions() {
   const selectedGroup = groupSelect.value;  // remember the user's selection so it can be restored after rebuilding the dropdown
   const activeGroups = getActiveGroupNames();
 
   groupSelect.replaceChildren();
 
-  // create an <option> for tasks that don't belong to a group, value is emmpty string so it can be distinguished from the "Add new group..." option
+  // create an <option> for tasks that don't belong to a group, value is empty string so it can be distinguished from the "Add new group..." option
   const noGroupOption = document.createElement('option');
   noGroupOption.value = '';
   noGroupOption.textContent = 'No group';
@@ -66,15 +78,16 @@ function renderGroupOptions() {
 
   // Restore the user's selection if it's still valid, otherwise select the "No group" option.
   const validSelections = ['', addNewGroupValue, ...activeGroups];
+  // if the selected group is still valid, keep it selected, otherwise (? operator) use the default value of '' (No group) to select the "No group" option
   groupSelect.value = validSelections.includes(selectedGroup) ? selectedGroup : '';
 }
 
 // Show group label buttons, or show the selected group's tasks with a way back.
 function renderGroupView() {
   const activeGroups = getActiveGroupNames();
-  groupListContainer.replaceChildren();
+  groupListContainer.replaceChildren(); // clear the group list container so it can be rebuilt with the current state of groups and tasks
 
-  // If a group is selected and it still has unfinished tasks, show its tasks with a back button.
+  // If a group is selected and it still has ongoing tasks, show its tasks with a back button.
   if (selectedGroup && activeGroups.includes(selectedGroup)) {
     // create a <button> to go back to the group list and add it to the page
     const backButton = document.createElement('button');
@@ -82,30 +95,37 @@ function renderGroupView() {
     backButton.textContent = 'Back to groups';
     backButton.addEventListener('click', () => {
       selectedGroup = null;
-      renderGroupView();
+      renderGroupView();  // recursively call renderGroupView() to show the group list again
     });
 
     // Show the selected group's name and its tasks.
-    const heading = document.createElement('h3'); // create h2 heading in html file for the selected group name
-    heading.textContent = selectedGroup;
+    const heading = document.createElement('h3'); // create h3 heading in html file for the selected group name
+    heading.textContent = selectedGroup;  // set the h3 heading text to the selected group name
 
     // create a <ul> to hold the tasks in the selected group and update html
     const taskList = document.createElement('ul');
-    const groupTasks = tasks.filter((task) => task.group === selectedGroup);
+    const groupTasks = tasks.filter((task) => task.group === selectedGroup);  // get all tasks that belong to the selected group
     groupListContainer.append(backButton, heading, taskList);
-    renderTasks(taskList, groupTasks);
+    renderTasks(taskList, groupTasks);  // rendertasks is called before it is defined, but it will be hoisted to the top of the file so it can be used here
     return;
   }
 
   selectedGroup = null;
-  // If no group is selected, show links to view each active group
+  // If no group is selected, show group label buttons for each active group, or a message if there are no active groups.
+  if (activeGroups.length === 0) {
+    const message = document.createElement('p');
+    message.textContent = "No active groups.";
+    groupListContainer.append(message);
+    return; // if there are no active groups, show a message and return early so the rest of the function doesn't run
+  }
   activeGroups.forEach((groupName) => {
-    const groupButton = document.createElement('button');
-    groupButton.type = 'button';
+    const groupButton = document.createElement('button'); // create a <button> for each group
+    groupButton.type = 'button';  // set the button type to "button" so it doesn't submit the form when clicked
     groupButton.textContent = groupName;
+    // when the user clicks a group button, set the selectedGroup to that group name and render the group view
     groupButton.addEventListener('click', () => {
       selectedGroup = groupName;
-      renderGroupView();
+      renderGroupView();  // recursively call renderGroupView() to show the tasks in the selected group
     });
     groupListContainer.append(groupButton);
   });
@@ -114,9 +134,9 @@ function renderGroupView() {
 // Show and require the text field only when the user chooses to add a group.
 function updateNewGroupInput() {
   const addingNewGroup = groupSelect.value === addNewGroupValue;  // true if the user selected "Add new group..." from the dropdown
-  newGroupInput.hidden = !addingNewGroup; // hide the new group input when not adding a new group
-  newGroupInput.disabled = !addingNewGroup; // disable the new group input when not adding a new group so it doesn't get submitted with the form
-  newGroupInput.required = addingNewGroup;  // require the new group input only when adding a new group so the form can be submitted without it
+  newGroupInput.hidden = !addingNewGroup; // when not adding a new group, set new group input to hidden
+  newGroupInput.disabled = !addingNewGroup; // when not adding a new group, disable the new group input
+  newGroupInput.required = addingNewGroup;  // only when adding a new group should you require the new group input 
 
   if (addingNewGroup) {
     newGroupInput.focus();  // set keybaord focus to the new group input so the user can start typing immediately
@@ -128,21 +148,28 @@ function updateNewGroupInput() {
 
 // Put the given tasks into the given list on the page.
 function renderTasks(taskList, tasksToRender) {
-  taskList.replaceChildren();
+  taskList.replaceChildren(); // clear the task list so it can be rebuilt with the current state of tasks
 
   // Make one list item for every task in this view.
+  // iterate over array of tasks to render and create a list <li> item for each task, then append it to the task list
   tasksToRender.forEach((task) => {
     const listItem = document.createElement('li');
-    listItem.dataset.taskId = String(task.id);
+    listItem.dataset.taskId = String(task.id);  // store the task id in a data attribute so it can be used later to identify the task when the user clicks the checkbox
+     // add the "done" class to the list item so it can be styled differently in CSS
+    if (task.done) {
+      listItem.classList.add('done');
+    }
 
-    const label = document.createElement('label');
-    const doneCheckbox = document.createElement('input');
+    const label = document.createElement('label');  // create <label> element to hold checkbox and task title
+    const doneCheckbox = document.createElement('input'); // create <input> element to hold checkbox for marking task as done
     doneCheckbox.type = 'checkbox';
-    doneCheckbox.checked = task.done;
+    doneCheckbox.checked = task.done; // set the checkbox state to match the task's done property
+    // when user clicks checkbox, do 3 things
     doneCheckbox.addEventListener('change', () => {
-      task.done = doneCheckbox.checked;
+      task.done = doneCheckbox.checked; // update the task's done property to match the checkbox state
       renderTaskViews();
       renderGroupOptions();
+      saveTasks();
     });
 
     label.append(doneCheckbox, document.createTextNode(` ${task.title} (${task.priority})`));
@@ -154,22 +181,24 @@ function renderTasks(taskList, tasksToRender) {
 
 // Filter the tasks for each tab, then use renderTasks to display each subset.
 function renderTaskViews() {
-  renderTasks(allTaskList, tasks);
-  renderGroupView();
+  renderTasks(allTaskList, tasks);  // show all tasks in the "All" tab
+  renderGroupView();  // show the group view in the "Groups" tab
 
-  Object.entries(priorityTaskLists).forEach(([priority, taskList]) => {
-    const priorityTasks = tasks.filter((task) => task.priority === priority);
-    renderTasks(taskList, priorityTasks);
+  Object.entries(priorityTaskLists).forEach(([priority, taskList]) => { // for each priority level, get the corresponding task list element and filter tasks by that priority
+    const priorityTasks = tasks.filter((task) => task.priority === priority); // get all tasks that match the current priority and store in an array
+    renderTasks(taskList, priorityTasks); // pass the array of tasks to renderTasks() to display them in the corresponding priority list
   });
 }
 
 // Update the new group input field whenever the user changes the group selection.
-groupSelect.addEventListener('change', updateNewGroupInput);
+groupSelect.addEventListener('change', updateNewGroupInput);  // i.e. call function updateNewGroupInput() whenever the user changes the group selection in the dropdown
 newGroupInput.addEventListener('input', () => newGroupInput.setCustomValidity(''));
 
+// actually CALLING functions to render page when it first loads, so user sees current state of tasks and groups.
 renderGroupOptions();
 renderTaskViews();
 updateNewGroupInput();
+saveTasks();
 
 // Run this function whenever the user submits the task form.
 taskForm.addEventListener('submit', (event) => {
@@ -178,9 +207,10 @@ taskForm.addEventListener('submit', (event) => {
 
   // Read the values entered in the form by their name attributes.
   const formData = new FormData(taskForm);
+  // use ?? to provide a default value of '' if the form input is null or undefined, then trim whitespace from the string
   const description = String(formData.get('description') ?? '').trim();
   const groupName = groupSelect.value === addNewGroupValue
-    ? newGroupInput.value.trim()
+    ? newGroupInput.value.trim()  // if the user selected "Add new group...", use the value from the new group input, otherwise use the value from the group dropdown
     : groupSelect.value;
 
   // Validate the new group name if the user selected "Add new group..." and didn't enter a name or entered the placeholder text
@@ -204,6 +234,7 @@ taskForm.addEventListener('submit', (event) => {
   nextTaskId += 1;
   tasks.push(task);
 
+  saveTasks();
   renderTaskViews();
   renderGroupOptions();
 
@@ -219,25 +250,49 @@ taskForm.addEventListener('submit', (event) => {
 // Find the tab buttons and task tabs in index.html to respond to buttons and update page.
 const tabButtons = document.querySelectorAll('.tab-buttons button[data-tab]');
 const taskTabs = document.querySelectorAll('.task-tab');
-
-function showTab(button) {
-  const targetTabId = button.dataset.tab; // Get id of tab to /make visible from button's data-tab attribute
+function showTab(button) 
+{
+  const targetTabId = button.dataset.tab; // Get id of tab to make visible from button's data-tab attribute
   const targetTab = document.getElementById(targetTabId);
 
   taskTabs.forEach((tab) => {
-    tab.hidden = tab !== targetTab; // hide all tabs except the one that matches the button's data-tab
+    tab.hidden = (tab !== targetTab); // when tab is not the target tab, set tab to hidden, otherwise show it
   });
   tabButtons.forEach((tabButton) => {
-    tabButton.classList.toggle('active', tabButton === button); // add 'active' class to the clicked button and remove it from others
+    // .toggle adds it if missing, removes it if present
+    // add '.active' class to the clicked <button> to display and remove it from others to hide (modify html)
+    tabButton.classList.toggle('active', tabButton === button);
   });
 }
 
 // Add click event listeners to each tab button to show the corresponding tab when clicked.
+// tabButtons is a NodeList, which is not an array, so we use forEach() to iterate over it and add an event listener to each button.
 tabButtons.forEach((button) => {
   button.addEventListener('click', () => {
     showTab(button);
   });
 });
 
+// Show the active tab if one is already active, otherwise show the "All" (1st) tab by default.
+// ... means "spread" the NodeList into an array i.e. [...tabButtons] is equivalent to Array.from(tabButtons)
 const activeTabButton = [...tabButtons].find((button) => button.classList.contains('active')) ?? tabButtons[0];
 if (activeTabButton) showTab(activeTabButton);
+
+// Persist tasks in localStorage with JSON so they survive page reloads.
+// Save entire array at once under a single master key 'tasks', instead of saving each task individually
+// JSON.stringify converts the tasks array into a JSON string so it can be stored in localStorage
+// each time task list is updated, task array stored under 'tasks' key is replaced with updated version
+function saveTasks() {
+  localStorage.setItem('tasks', JSON.stringify(tasks));
+}
+
+// Load tasks from localStorage when the page loads, if any exist
+function loadTasks() {
+  const savedTasks = localStorage.getItem('tasks');
+  // if there are saved tasks, parse the JSON string back into an array of task objects and push them into the tasks array
+  if (savedTasks) {
+    const parsedTasks = JSON.parse(savedTasks);
+    // spread operator ... is used to push each task object into the tasks array 
+    tasks.push(...parsedTasks);  // i.e. tasks.push(task1, task2, task3, ...)
+  }
+}

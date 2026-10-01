@@ -6,13 +6,13 @@
 - Offine usability (data stored locally on device)
 
 # Task fields 
-- Title = short description of task
-- Optional: longer description including with
-- Priority label
-- Task group (custom)
+- Title = short description of task String
+- Optional: longer description including with String
+- Priority label String
+- Task group (custom) String
 
-- id
-- done
+- id int
+- done boolean
 
 # Future Features ideas
 - Task breadowns (main task has subsection containing smaller steps)
