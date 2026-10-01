@@ -29,7 +29,7 @@ dialog {
 
 dialog::backdrop {
   background-color: rgba(0, 0, 0, 0.6); /* Semi-transparent black */
-  backdrop-filter: blur(4px);            /* Optional: Blurs underlying content */
+  backdrop-filter: blur(4px);            /* Blurs underlying content */
 }
 
 /*

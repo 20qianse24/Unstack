@@ -22,8 +22,9 @@ if (tasks.length > 0) {
   nextTaskId = Math.max(...tasks.map((task) => task.id)) + 1;
 }
 
-// call dialog setup when page first loads
+// call dialog setups when page first loads
 document.addEventListener('DOMContentLoaded', setupTaskOptionsDialog);
+document.addEventListener('DOMContentLoaded', setupAddTaskDialog);
 
 // Find the form and list in index.html so this code can respond to the form and update the page.
 
@@ -40,6 +41,15 @@ const priorityTaskLists = {
 const groupSelect = document.querySelector('#group'); //
 const newGroupInput = document.querySelector('#new-group');
 const addNewGroupValue = '__add_new_group__';
+
+// Add event listener to the add task "+" button to open the add task dialog box if clicked.
+// added at the top since its always visible unlike dynamic task list items
+const addTaskBtn = document.querySelector('#new-task');
+// if "+" button clicked, show add task pop up dialog box
+addTaskBtn.addEventListener('click', () => {
+  openAddTask({ currentTarget: addTaskBtn });
+});
+
 let selectedGroup = null; // the name of the group currently being viewed, null if no group is selected
 
 // Return the unique groups that still have at least one unfinished task.
@@ -186,7 +196,7 @@ function renderTasks(taskList, tasksToRender) {
         return;
       }
       // else open dialog box, passing clicked list item as current target so the dialog box can get the task id and title from its data attributes
-      openDialog({ currentTarget: listItem });
+      openOptionsDialog({ currentTarget: listItem });
     });
 
     const taskText = document.createElement('span');
@@ -342,7 +352,7 @@ function setupTaskOptionsDialog() {
       return;
     }
     // Ask the user to confirm the deletion of the task. If they cancel, do nothing.
-    const confirmed = window.confirm('Delete this task?');
+    const confirmed = window.confirm('Delete this task?');  // browser built-in confirm window
     if (!confirmed) {
       return;
     }
@@ -364,7 +374,7 @@ function setupTaskOptionsDialog() {
 }
 
 // Open the dialog box when the user clicks on a task, and populate it with the task's title and id.
-function openDialog(event) {
+function openOptionsDialog(event) {
   const taskOptions = document.getElementById('task-options');
   const clickedTaskTitle = document.getElementById('clicked-task-title');
   // If any of the elements are missing, do nothing.
@@ -377,3 +387,31 @@ function openDialog(event) {
   taskOptions.dataset.taskId = event.currentTarget.dataset.taskId;  // store task id in dialog box's data attribute so it can be used later to identify the task when the user clicks on it
   taskOptions.showModal();
 }
+
+// Setup function for add task dialog box, which is called when the page first loads.
+function setupAddTaskDialog() {
+  const addTaskWindow = document.querySelector("#add-task-dialog");
+  const closeAddTask = document.querySelector('#close-add-task');
+  if (!addTaskWindow || !closeAddTask) {
+    return;
+  }
+
+  closeAddTask.addEventListener('click', () => {
+    addTaskWindow.close();
+  });
+
+  // Add event listener to the add task <form> to close the dialog box after submiting the form.
+  const addTaskForm = document.querySelector('#add-task');
+  addTaskForm.addEventListener('submit', () => {
+    addTaskWindow.close();
+    // don't need to save or render tasks here, form submit event listener already does that in the main code above
+  });
+}
+
+// Open the dialog box when the user clicks on add task "+" button
+function openAddTask() {
+  const addTask = document.getElementById('add-task-dialog');
+  addTask.showModal();
+  document.getElementById('title').focus(); // set keyboard focus to the title input field so the user can start typing immediately
+}
+

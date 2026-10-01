@@ -36,45 +36,6 @@
       </button>
     </header>
 
-    <form id="add-task">
-      <!--Get task title-->
-        <div class ="form-group">
-          <div class ="form-label"><label for="title">Task <span>*</span>:</label></div>
-          <div class ="form-element"><input type="text" name="title" id="title" placeholder="Enter task..." required></div>
-        </div>
-      <!--Get description/extra notes-->
-        <div class ="form-group">
-          <div class ="form-label"><label for="description">Extra Notes:</label></div>
-          <div class ="form-element"><input type="text" name="description" id="description" placeholder="Enter extra notes..."></div>
-        </div>
-      <!--Get priority label-->
-        <div class ="form-group">
-          <div class ="form-label"><label for="priority">Priority <span>*</span>:</label></div>
-          <div class ="form-element">
-            <select id="priority" name="priority" required>
-                  <option value="" selected disabled>Select a priority level</option>
-                  <option value="low">Low</option>
-                  <option value="mid">Medium</option>
-                  <option value="high">High</option>
-            </select>
-          </div>
-        </div>
-      <!--Get group label-->
-      <div class ="form-group">
-        <div class ="form-label"><label for="group">Task Group:</label></div>
-        <div class ="form-element">
-          <select id="group" name="group">
-            <option value="">No group</option>
-            <option value="__add_new_group__">Add new group...</option>
-          </select>
-          <input type="text" id="new-group" placeholder="New group name" hidden disabled>
-        </div>
-      </div>
-        <!--Submit button-->
-        <button type="submit">Add Task</button>
-    </form>
-
-
     <!--Task viewing tabs-->
     <main>
       <!--All tasks-->
@@ -108,6 +69,49 @@
     <footer>
       <button id="new-task">+</button>
     </footer>
+
+    <!--Add task form-->
+    <dialog id="add-task-dialog">
+      <button id="close-add-task">X</button>
+      <h4>Add Task</h4>
+      <form id="add-task">
+        <!--Get task title-->
+          <div class ="form-group">
+            <div class ="form-label"><label for="title">Task <span>*</span>:</label></div>
+            <div class ="form-element"><input type="text" name="title" id="title" placeholder="Enter task..." required></div>
+          </div>
+        <!--Get description/extra notes-->
+          <div class ="form-group">
+            <div class ="form-label"><label for="description">Extra Notes:</label></div>
+            <div class ="form-element"><input type="text" name="description" id="description" placeholder="Enter extra notes..."></div>
+          </div>
+        <!--Get priority label-->
+          <div class ="form-group">
+            <div class ="form-label"><label for="priority">Priority <span>*</span>:</label></div>
+            <div class ="form-element">
+              <select id="priority" name="priority" required>
+                    <option value="" selected disabled>Select a priority level</option>
+                    <option value="low">Low</option>
+                    <option value="mid">Medium</option>
+                    <option value="high">High</option>
+              </select>
+            </div>
+          </div>
+        <!--Get group label-->
+        <div class ="form-group">
+          <div class ="form-label"><label for="group">Task Group:</label></div>
+          <div class ="form-element">
+            <select id="group" name="group">
+              <option value="">No group</option>
+              <option value="__add_new_group__">Add new group...</option>
+            </select>
+            <input type="text" id="new-group" placeholder="New group name" hidden disabled>
+          </div>
+        </div>
+          <!--Submit button-->
+          <button type="submit">Add Task</button>
+      </form>
+    </dialog>
 
     <!--Pop up edit and delete window when a task is clicked-->
     <dialog id="task-options">
