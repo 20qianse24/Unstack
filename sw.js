@@ -41,15 +41,16 @@ self.addEventListener('activate', (event) => {
 
 // Handle page requests so online users get updates and offline users get saved files.
 self.addEventListener('fetch', (event) => {
-  // Only cache page and file requests; do not intercept form submissions or other actions.
-  if (event.request.method !== 'GET') return;
-
+  // Only cache GET requests and ignore unsupported schemes
+  if (event.request.method !== 'GET' || !event.request.url.startsWith('http')) {
+    return;
+  }
+  // Use a network-first strategy for all requests, falling back to the cache if the network is unavailable.
   event.respondWith(
-    // Try the network first so new app changes appear without clearing the phone's cache.
     fetch(event.request)
       .then((networkResponse) => {
+        // If the network request is successful, clone the response and store it in the cache for future use.
         if (networkResponse.ok) {
-          // Responses can only be read once, so save a copy while returning the original.
           const responseClone = networkResponse.clone();
           caches.open(cacheName).then((cache) => {
             cache.put(event.request, responseClone);
@@ -57,7 +58,7 @@ self.addEventListener('fetch', (event) => {
         }
         return networkResponse;
       })
-      // If the network is unavailable, return the saved file instead.
+      //
       .catch(() =>
         caches.match(event.request).then((cachedResponse) => {
           if (cachedResponse) return cachedResponse;

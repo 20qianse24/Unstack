@@ -2,7 +2,6 @@
 if ('serviceWorker' in navigator) {
   window.addEventListener('load', () => {
     navigator.serviceWorker.register('./sw.js').catch((error) => {
-      console.error('Service worker registration failed:', error);
     });
   });
 }
@@ -30,26 +29,28 @@ document.addEventListener('DOMContentLoaded', setupAddTaskDialog);
 
 // querySelectorAll is the browser's API for finding all elements that match a CSS selector, returning a NodeList of matching elements.
 // the browser gives you: document, window, navigator, localStorage
-const taskForm = document.querySelector('#add-task'); // uses the id of the form in index.html to find it
-const allTaskList = document.querySelector('#all-task-list');
-const groupListContainer = document.querySelector('#group-list'); // container for group buttons and selected group tasks
+const taskForm = document.getElementById('add-task'); // uses the id of the form in index.html to find it
+const allTaskList = document.getElementById('all-task-list');
+const groupListContainer = document.getElementById('group-list'); // container for group buttons and selected group tasks
 const priorityTaskLists = {
-  high: document.querySelector('#high-priorities-task-list'),
-  mid: document.querySelector('#mid-priorities-task-list'),
-  low: document.querySelector('#low-priorities-task-list'),
+  high: document.getElementById('high-priorities-task-list'),
+  mid: document.getElementById('mid-priorities-task-list'),
+  low: document.getElementById('low-priorities-task-list'),
 };
-const groupSelect = document.querySelector('#group'); //
-const newGroupInput = document.querySelector('#new-group');
+const groupSelect = document.getElementById('group'); //
+const newGroupInput = document.getElementById('new-group');
 const addNewGroupValue = '__add_new_group__';
 
 // Add event listener to the add task "+" button to open the add task dialog box if clicked.
 // added at the top since its always visible unlike dynamic task list items
-const addTaskBtn = document.querySelector('#new-task');
+const addTaskBtn = document.getElementById('new-task');
+
 // if "+" button clicked, show add task pop up dialog box
 addTaskBtn.addEventListener('click', () => {
-  openAddTask({ currentTarget: addTaskBtn });
+  openAddTask(); // add task needs no parameters
 });
 
+let editingTaskId = null; // null = add task, number = edit task
 let selectedGroup = null; // the name of the group currently being viewed, null if no group is selected
 
 // Return the unique groups that still have at least one unfinished task.
@@ -167,8 +168,13 @@ function renderTasks(taskList, tasksToRender) {
   tasksToRender.forEach((task) => {
      // store task id and title in a data attribute VARIABLE so it can be used later to identify the task when the user clicks on it
     const listItem = document.createElement('li');
+    // set dataset attributes of each task
     listItem.dataset.taskId = String(task.id);  // taskId is a variable that stores the task's id as a string so it can be used later to identify the task when the user clicks on it
     listItem.dataset.taskTitle = task.title;
+    /*listItem.dataset.taskDescription = task.description;
+    listItem.dataset.taskPriority = task.priority;
+    listItem.dataset.taskGroup = task.group;
+    listItem.dataset.taskDone = task.done;*/
 
     // add the "done" class to the list item so it can be styled differently in CSS
     if (task.done) {
@@ -230,10 +236,12 @@ updateNewGroupInput();
 saveTasks();
 
 // Run this function whenever the user submits the task form.
+// use editingTaskId as a FLAG for edits - change instead of add new
 taskForm.addEventListener('submit', (event) => {
   // Stop the browser from reloading the page when the form is submitted.
   event.preventDefault();
 
+  // READ + VALIDATE
   // Read the values entered in the form by their name attributes.
   const formData = new FormData(taskForm);
   // use ?? to provide a default value of '' if the form input is null or undefined, then trim whitespace from the string
@@ -249,27 +257,37 @@ taskForm.addEventListener('submit', (event) => {
     return;
   }
 
-  // Create the task OBJECT, filling fields that do not have form inputs with defaults.
-  const task = {
-    id: nextTaskId,
-    done: false,
-    title: String(formData.get('title') ?? '').trim(),
-    description: description || null, // null if no form input provided
-    priority: formData.get('priority'),
-    group: groupName || null, // null if no form input provided
-  };
+  // BRANCH into EDIT or ADD
+  if (editingTaskId !== null) {
+    // EDIT branch: find the existing task and overwrite its fields
+    const taskToEdit = tasks.find((task) => task.id === editingTaskId);
+    if (taskToEdit) {
+      // get updated data from form inputs
+      taskToEdit.title = String(formData.get('title') ?? '').trim();
+      taskToEdit.description = description || null;
+      taskToEdit.priority = formData.get('priority');
+      taskToEdit.group = groupName || null;
+    } 
+  } else {  // ADD branch: else push new task and increment id as usual
+    // Create the task OBJECT, filling fields that do not have form inputs with defaults.
+    const task = {
+      id: nextTaskId,
+      done: false,
+      title: String(formData.get('title') ?? '').trim(),
+      description: description || null, // null if no form input provided
+      priority: formData.get('priority'),
+      group: groupName || null, // null if no form input provided
+    };
 
-  // Advance the id number and save the task in the in-memory array.
-  nextTaskId += 1;
-  tasks.push(task);
-
-  saveTasks();
+    // Advance the id number and save the task in the in-memory array.
+    nextTaskId += 1;
+    tasks.push(task);
+    }
+  // SHARED BEHAVIOUR in ADD and EDIT
+  saveTasks()
   renderTaskViews();
   renderGroupOptions();
-
-  // Clear the inputs so the form is ready for another task.
-  taskForm.reset();
-  updateNewGroupInput();
+  document.getElementById('add-task-dialog').close();
 });
 
 
@@ -331,11 +349,10 @@ function setupTaskOptionsDialog() {
   const taskOptions = document.getElementById('task-options');
   const closeButton = document.getElementById('close-window');
   const deleteButton = document.getElementById('delete-btn');
-  /////////// COMBACK ONCE ADD POPUP IS IMPLEMENTED ///////////
   const editButton = document.getElementById('edit-btn');
 
   // If any of the elements are missing, don't set up the dialog box.
-  if (!taskOptions || !closeButton || !deleteButton) {
+  if (!taskOptions || !closeButton || !deleteButton || !editButton) {
     return;
   }
 
@@ -344,6 +361,7 @@ function setupTaskOptionsDialog() {
     taskOptions.close();
   });
 
+  // delete task logic
   deleteButton.addEventListener('click', () => {
     // Get the task id from the dialog box's data attribute and convert it to a number.
     const currTaskId = Number(taskOptions.dataset.taskId);
@@ -371,6 +389,18 @@ function setupTaskOptionsDialog() {
     renderGroupOptions();
     taskOptions.close();  // close the dialog box after deleting the task
   });
+
+  // edit task logic
+  editButton.addEventListener('click', () => {
+    // close current pop up and open edit task view
+    const currTaskId = Number(taskOptions.dataset.taskId);
+    taskOptions.close();  // close AFTER getting currTaskId so it can be used in openAddTask()
+    // If the task id is not a valid number, do nothing.
+    if (!Number.isInteger(currTaskId)) {
+      return;
+    }
+    openAddTask(currTaskId); // set current task id to flag edit capability
+  });
 }
 
 // Open the dialog box when the user clicks on a task, and populate it with the task's title and id.
@@ -390,8 +420,8 @@ function openOptionsDialog(event) {
 
 // Setup function for add task dialog box, which is called when the page first loads.
 function setupAddTaskDialog() {
-  const addTaskWindow = document.querySelector("#add-task-dialog");
-  const closeAddTask = document.querySelector('#close-add-task');
+  const addTaskWindow = document.getElementById("add-task-dialog");
+  const closeAddTask = document.getElementById('close-add-task');
   if (!addTaskWindow || !closeAddTask) {
     return;
   }
@@ -399,19 +429,28 @@ function setupAddTaskDialog() {
   closeAddTask.addEventListener('click', () => {
     addTaskWindow.close();
   });
-
-  // Add event listener to the add task <form> to close the dialog box after submiting the form.
-  const addTaskForm = document.querySelector('#add-task');
-  addTaskForm.addEventListener('submit', () => {
-    addTaskWindow.close();
-    // don't need to save or render tasks here, form submit event listener already does that in the main code above
-  });
 }
 
 // Open the dialog box when the user clicks on add task "+" button
-function openAddTask() {
+function openAddTask(currTaskId = null) {
   const addTask = document.getElementById('add-task-dialog');
-  addTask.showModal();
-  document.getElementById('title').focus(); // set keyboard focus to the title input field so the user can start typing immediately
-}
 
+  if (currTaskId !== null) {  // make edit task dynamic changes to form
+    const currTask = tasks.find((task) => task.id === currTaskId);
+    if (currTask === undefined) return;
+
+    editingTaskId = currTaskId; // edit task id
+    document.getElementById('submit-btn').textContent = 'Save Changes';
+    document.getElementById('add/edit-form-title').textContent = 'Edit Task';
+
+    renderGroupOptions();         // so the group option exists before selecting it
+    // set input fields to current task info
+    document.getElementById('title').value = currTask.title;
+    document.getElementById('description').value = currTask.description ?? '';
+    document.getElementById('priority').value = currTask.priority;
+    document.getElementById('group').value = currTask.group ?? '';
+  }
+  // open pop up and set keyboard directly to first input field
+  addTask.showModal();
+  document.getElementById('title').focus();
+}
