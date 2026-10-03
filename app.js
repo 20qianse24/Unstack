@@ -168,9 +168,13 @@ function renderTasks(taskList, tasksToRender) {
   tasksToRender.forEach((task) => {
      // store task id and title in a data attribute VARIABLE so it can be used later to identify the task when the user clicks on it
     const listItem = document.createElement('li');
-    // set dataset attributes of each task
-    listItem.dataset.taskId = String(task.id);  // taskId is a variable that stores the task's id as a string so it can be used later to identify the task when the user clicks on it
+
+    // set dataset attributes of each task to be referenced when clicking a task
+    // NOTE data-* attribute can ONLY hold TEXT/STRINGS
+    listItem.dataset.taskId = String(task.id);  // convert int id to string for storage
     listItem.dataset.taskTitle = task.title;
+
+    // don't use these, since null values for optional fields will be stored as literal "null" string in data-*
     /*listItem.dataset.taskDescription = task.description;
     listItem.dataset.taskPriority = task.priority;
     listItem.dataset.taskGroup = task.group;
@@ -227,7 +231,7 @@ function renderTaskViews() {
 
 // Update the new group input field whenever the user changes the group selection.
 groupSelect.addEventListener('change', updateNewGroupInput);  // i.e. call function updateNewGroupInput() whenever the user changes the group selection in the dropdown
-newGroupInput.addEventListener('input', () => newGroupInput.setCustomValidity(''));
+newGroupInput.addEventListener('input', () => newGroupInput.setCustomValidity('')); // attach custom error message in HTML
 
 // actually CALLING functions to render page when it first loads, so user sees current state of tasks and groups.
 renderGroupOptions();
@@ -236,7 +240,7 @@ updateNewGroupInput();
 saveTasks();
 
 // Run this function whenever the user submits the task form.
-// use editingTaskId as a FLAG for edits - change instead of add new
+// use editingTaskId as a FLAG for EDIT or ADD form type
 taskForm.addEventListener('submit', (event) => {
   // Stop the browser from reloading the page when the form is submitted.
   event.preventDefault();
@@ -244,8 +248,10 @@ taskForm.addEventListener('submit', (event) => {
   // READ + VALIDATE
   // Read the values entered in the form by their name attributes.
   const formData = new FormData(taskForm);
-  // use ?? to provide a default value of '' if the form input is null or undefined, then trim whitespace from the string
-  const description = String(formData.get('description') ?? '').trim();
+  // Safely extract the string and fallback to an empty string if empty
+  // Uses Logical OR (||): Using || instead of ?? checks for all falsy values.
+  // If formData.get() returns null, undefined, or an empty string "", it immediately swaps it for your fallback ''
+  const description = (formData.get('description') || '').toString().trim();
   const groupName = groupSelect.value === addNewGroupValue
     ? newGroupInput.value.trim()  // if the user selected "Add new group...", use the value from the new group input, otherwise use the value from the group dropdown
     : groupSelect.value;
@@ -370,7 +376,7 @@ function setupTaskOptionsDialog() {
       return;
     }
     // Ask the user to confirm the deletion of the task. If they cancel, do nothing.
-    const confirmed = window.confirm('Delete this task?');  // browser built-in confirm window
+    const confirmed = window.confirm('Delete this task? Cannot be undone.');  // browser built-in confirm window
     if (!confirmed) {
       return;
     }
@@ -407,12 +413,30 @@ function setupTaskOptionsDialog() {
 function openOptionsDialog(event) {
   const taskOptions = document.getElementById('task-options');
   const clickedTaskTitle = document.getElementById('clicked-task-title');
-  // If any of the elements are missing, do nothing.
+  const clickedTaskDescription = document.getElementById('clicked-task-description');
+  // If any of the required elements are missing, do nothing.
   if (!taskOptions || !clickedTaskTitle) {
     return;
   }
 
-  clickedTaskTitle.textContent = event.currentTarget.dataset.taskTitle; // set visible text
+  // set visible text
+  clickedTaskTitle.textContent = event.currentTarget.dataset.taskTitle;
+
+  // Use stored id of current task in data attribute to get description (event is current task)
+  const currTaskId = Number(event.currentTarget.dataset.taskId);  // convert id back into int from string in data- attribute storage
+  const currTask = tasks.find((task) => task.id === currTaskId);  // search global array with id to get task object
+  if (currTask === undefined) return;
+
+  const taskDesc = currTask.description;  // this avoids a null value being converted to a string from running it through data- attribute
+  console.log('desc:', taskDesc, 'for', currTask);
+  // do not show null if there is no description
+  if ( taskDesc === null || taskDesc == '') {
+    clickedTaskDescription.style.display = "none";
+    clickedTaskDescription.textContent = '';
+  } else {  // only set description text if not empty
+    clickedTaskDescription.style.display = '';  // undo previous hide styles
+    clickedTaskDescription.textContent = taskDesc;
+  }
   // data attribute was defined in renderTasks() when the list item was created, so it can be used here to identify the task when the user clicks on it
   taskOptions.dataset.taskId = event.currentTarget.dataset.taskId;  // store task id in dialog box's data attribute so it can be used later to identify the task when the user clicks on it
   taskOptions.showModal();
@@ -432,24 +456,38 @@ function setupAddTaskDialog() {
 }
 
 // Open the dialog box when the user clicks on add task "+" button
+// parameter currTask is only used when user wants to edit
 function openAddTask(currTaskId = null) {
   const addTask = document.getElementById('add-task-dialog');
+  const submitButton = document.getElementById('submit-btn');
+  const formTitle = document.getElementById('add/edit-form-title');
 
   if (currTaskId !== null) {  // make edit task dynamic changes to form
+    // search gloabl task list for matching id to current task id
     const currTask = tasks.find((task) => task.id === currTaskId);
     if (currTask === undefined) return;
 
-    editingTaskId = currTaskId; // edit task id
-    document.getElementById('submit-btn').textContent = 'Save Changes';
-    document.getElementById('add/edit-form-title').textContent = 'Edit Task';
+    editingTaskId = currTaskId; // set global flag for EDIT branch
+    submitButton.textContent = 'Save Changes';
+    formTitle.textContent = 'Edit Task';
 
     renderGroupOptions();         // so the group option exists before selecting it
     // set input fields to current task info
     document.getElementById('title').value = currTask.title;
+    // set to '' null if no input provided
     document.getElementById('description').value = currTask.description ?? '';
     document.getElementById('priority').value = currTask.priority;
-    document.getElementById('group').value = currTask.group ?? '';
+    groupSelect.value = currTask.group ?? '';
+  } else {
+    editingTaskId = null; // set global flag to ADD task branch
+    taskForm.reset();
+    renderGroupOptions();
+    groupSelect.value = '';
+    submitButton.textContent = 'Add Task';
+    formTitle.textContent = 'Add Task';
   }
+
+  updateNewGroupInput();
   // open pop up and set keyboard directly to first input field
   addTask.showModal();
   document.getElementById('title').focus();
