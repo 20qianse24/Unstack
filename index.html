@@ -83,7 +83,11 @@
         <!--Get description/extra notes-->
           <div class ="form-group">
             <div class ="form-label"><label for="description">Extra Notes:</label></div>
-            <div class ="form-element"><input type="text" name="description" id="description" placeholder="Enter extra notes..."></div>
+            <div class ="form-element">
+              <!--teaxtarea allows multiple lines of text, rows="3" means 3 rows of visibility when typing NOT a limit-->
+              <!--Note that unlike input, textarea is NOT a self closing tag-->
+              <textarea name="description" id="description" placeholder="Enter extra notes..." rows="3"></textarea>
+            </div>
           </div>
         <!--Get priority label-->
           <div class ="form-group">

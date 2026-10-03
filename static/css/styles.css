@@ -19,6 +19,14 @@ ul {
 }
 
 /*
+Options window styling
+*/
+
+#clicked-task-description {
+    white-space: pre-wrap;  /*preserve line breaks as HTML collapses into single space otherwise*/
+}
+
+/*
 Style pop up box
 */
 dialog {
