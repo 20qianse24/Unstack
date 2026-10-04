@@ -190,7 +190,7 @@ function renderTasks(taskList, tasksToRender) {
     listItem.dataset.taskGroup = task.group;
     listItem.dataset.taskDone = task.done;*/
 
-    // add the "done" class to the list item so it can be styled differently in CSS
+    // add a "done" class to the list item so it can be styled differently in CSS
     if (task.done) {
       listItem.classList.add('done');
       listItem.style.textDecoration = 'line-through';  // add a line-through style to the task title when it is marked as done
@@ -200,8 +200,8 @@ function renderTasks(taskList, tasksToRender) {
 
     //const label = document.createElement('label');  // create <label> element to hold checkbox and task title
     const doneCheckbox = document.createElement('input'); // create <input> element to hold checkbox for marking task as done
-    doneCheckbox.type = 'checkbox'; // set the input type to checkbox so it can be used to mark tasks as done
-    doneCheckbox.checked = task.done; // set the checkbox state to match the task's current done property
+    doneCheckbox.type = 'checkbox'; // set the input type to checkbox (built-in property)
+    doneCheckbox.checked = task.done; // set the checkbox state to match the task's current done property (T/F)
 
     // when user clicks checkbox, do 3 things
     doneCheckbox.addEventListener('change', () => {
@@ -228,14 +228,37 @@ function renderTasks(taskList, tasksToRender) {
   });
 }
 
+// Return tasks according to global searchQuery filter
+function getVisibleTasks() {
+  // uses global query const
+  if (!searchQuery) return tasks; // no filter, show all tasks (normal view in ALL tab)
+  // else, filter for matching tile/description text (search view within ALL tab)
+  return tasks.filter((task) =>
+    [task.title, task.description ?? '']  // if LHS null, default to RHS=''
+      // .some returns a boolean
+      .some((text) => text.toLowerCase().includes(searchQuery)) // Checks if any text in the array contains query
+  );
+}
+
 // Filter the tasks for each tab, then use renderTasks to display each subset.
 function renderTaskViews() {
-  renderTasks(allTaskList, tasks);  // show all tasks in the "All" tab
+  // allTaskList = global list, getVisibleTasks displays by global query filter
+  renderTasks(allTaskList, getVisibleTasks());
   renderGroupView();  // show the group view in the "Groups" tab
 
-  Object.entries(priorityTaskLists).forEach(([priority, taskList]) => { // for each priority level, get the corresponding task list element and filter tasks by that priority
+  // for each priority level, get the corresponding task list element and filter tasks by that priority
+  Object.entries(priorityTaskLists).forEach(([priority, taskList], index) => {
     const priorityTasks = tasks.filter((task) => task.priority === priority); // get all tasks that match the current priority and store in an array
-    renderTasks(taskList, priorityTasks); // pass the array of tasks to renderTasks() to display them in the corresponding priority list
+    // display no. tasks in each priority level
+    const priorityLabels = document.querySelectorAll(".priority-group-label");  // returns a node list
+    // replaced count on each render;
+    // // .length is a property not a function (so not .length())
+    if (priorityLabels[index]) {  // index is param in forEach loop, indices in node list
+      // '${}' is like f string formatting
+      priorityLabels[index].textContent += `${priorityTasks.length} tasks`;
+    }
+    // pass the array of tasks to renderTasks() to display them in the corresponding priority list
+    renderTasks(taskList, priorityTasks);
   });
 }
 
@@ -311,7 +334,7 @@ taskForm.addEventListener('submit', (event) => {
 // Listen for clicks on the tab buttons and switch the visible tab.
 
 // Find the tab buttons and task tabs in index.html to respond to buttons and update page.
-const tabButtons = document.querySelectorAll('.tab-buttons button[data-tab]');
+const tabButtons = document.querySelectorAll('.tab-buttons button[data-tab]');  // get all buttons with class .tab-buttons and data-tab attribute
 const taskTabs = document.querySelectorAll('.task-tab');
 function showTab(button) 
 {
@@ -515,18 +538,6 @@ function openAddTask(currTaskId = null) {
 }
 
 // search functionality
-
-// Return only the tasks whose title or description contains the search query.
-function getSearchedTasks() {
-  // uses global query const
-  if (!searchQuery) return tasks;
-  // else, search global lsit for matching tile/description text
-  return tasks.filter((task) =>
-    [task.title, task.description ?? '']  // if LHS null, default to RHS=''
-      .some((text) => text.toLowerCase().includes(searchQuery)) // Checks if any text in the array contains query
-  );
-}
-
 const toggleSearchBtn = document.getElementById('toggle-search');
 const searchBox = document.getElementById('search');
 const searchInput = document.getElementById('search-input');
@@ -536,18 +547,22 @@ toggleSearchBtn.addEventListener('click', () => {
   searchBox.classList.toggle('open'); // dynamically add or remove class label 'open'
 
   if (searchBox.classList.contains('open')) {
-    searchBox.style.display = ''; // mske visible
+    searchBox.style.display = ''; // i.e. style="display:none" is inline CSS
+    showTab(tabButtons[0]);   // always go to All tab as soon as search opens
     searchInput.focus();
   } else {
     // closing search: clear the filter and show every task again
     searchInput.value = '';
-    searchQuery = ''; // reset global const
+    searchQuery = ''; // reset global const/filter
+    searchBox.style.display = 'none';
+    showTab(tabButtons[0]);
     renderTaskViews();
   }
 });
 
 // Filter LIVE as the user types using event 'input' (doesn't require submission)
 searchInput.addEventListener('input', () => {
-  searchQuery = searchInput.value.trim().toLowerCase(); // ignore case
+  searchQuery = searchInput.value.trim().toLowerCase(); // set global query/filter const
+  showTab(tabButtons[0]); // make sure user is on ALL tab view
   renderTaskViews();
 });

@@ -36,7 +36,7 @@
       </button>
     </header>
     <!--Search input box, hidden until toggled open-->
-    <div id="search">
+    <div id="search" style='display: none'>
       <input type="search" id="search-input" placeholder="Search tasks">
     </div>
 
@@ -59,12 +59,15 @@
       <section class="task-tab" id="tab-priorities">
         <h2 id="tasks-heading">Priorities</h2>
         <div class="priority-section" id="high-priority">
+          <h4 class="priority-group-label">High: </h4>
           <ul id="high-priorities-task-list"></ul>
         </div>
         <div class="priority-section" id="mid-priority">
+          <h4 class="priority-group-label">Medium: </h4>
           <ul id="mid-priorities-task-list"></ul>
         </div>
-        <div class="priority-section" id="low-priority">  
+        <div class="priority-section" id="low-priority">
+          <h4 class="priority-group-label">Low: </h4>
           <ul id="low-priorities-task-list"></ul>
         </div>
       </section>
