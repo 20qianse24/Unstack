@@ -149,7 +149,7 @@ header {
 /* ---------- Main ---------- */
 main {
   flex: 1;
-  padding: 26px 20px 20px;
+  /*padding: 26px 20px 20px;*/
 }
 
 /* ---------- Task "sticky notes" (All tab, groups, priorities) ---------- */
@@ -468,6 +468,16 @@ dialog h4 {
 #delete-btn { margin: 0; }
 
 #delete-btn { background: var(--pink); }
+
+.filter-box {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+select#status-filter {
+    margin: 1rem;
+}
 
 /* ---------- Motion preferences ---------- */
 @media (prefers-reduced-motion: reduce) {

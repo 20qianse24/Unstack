@@ -40,8 +40,17 @@
       <input type="search" id="search-input" placeholder="Search tasks">
     </div>
 
-    <!--Task viewing tabs-->
     <main>
+      <!--Drop down filter options-->
+      <div class="filter-box">
+        <h4>Filter by:</h4>
+        <select id="status-filter">
+          <option value="filer-all">All tasks</option>
+          <option value="filter-ongoing">Ongoing</option>
+          <option value="filter-done">Done</option>
+        </select>
+      </div>
+      <!--Task viewing tabs-->
       <!--All tasks-->
       <section class="task-tab" id="tab-all">
         <h2 id="tasks-heading">All</h2>

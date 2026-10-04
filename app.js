@@ -52,7 +52,8 @@ addTaskBtn.addEventListener('click', () => {
 
 let editingTaskId = null; // null = add task, number = edit task
 let selectedGroup = null; // the name of the group currently being viewed, null if no group is selected
-let searchQuery = ''; // current search text, lowercase; '' means no filter
+let searchQuery = ''; // current search text, lowercase; '' means no search filter
+let statusFilter = 'all' // filter tasks by done status, 'all' means no status based filter ('ongoing', 'done')
 
 // Return the unique groups that still have at least one unfinished task.
 function getActiveGroupNames() {
@@ -118,7 +119,7 @@ function renderGroupView() {
 
     // create a <ul> to hold the tasks in the selected group and update html
     const taskList = document.createElement('ul');
-    const groupTasks = tasks.filter((task) => task.group === selectedGroup);  // get all tasks that belong to the selected group
+    const groupTasks = applyFilters(tasks.filter((task) => task.group === selectedGroup));  // get all tasks that belong to the selected group, then apply filters
     groupListContainer.append(backButton, heading, taskList);
     renderTasks(taskList, groupTasks);  // rendertasks is called before it is defined, but it will be hoisted to the top of the file so it can be used here
     return;
@@ -204,7 +205,7 @@ function renderTasks(taskList, tasksToRender) {
     doneCheckbox.checked = task.done; // set the checkbox state to match the task's current done property (T/F)
 
     // when user clicks checkbox, do 3 things
-    doneCheckbox.addEventListener('change', () => {
+    doneCheckbox.addEventListener('change', () => { // don't need an event, check box always toggles between 2 possibilities
       task.done = doneCheckbox.checked; // update the task's done property to match the checkbox state
       renderTaskViews();
       renderGroupOptions();
@@ -228,16 +229,34 @@ function renderTasks(taskList, tasksToRender) {
   });
 }
 
-// Return tasks according to global searchQuery filter
+/**
+ * Filters the task list based on the current search query and status filter.
+ * @returns {Array} A new array containing only the tasks that match both criteria.
+ * Takes ANY list to filter
+ */
+function applyFilters(taskList) { // use nearly anywhere you use tasks.filter to get a task list
+  return taskList.filter((task) => {
+    // 1. Check if the task matches the search query.
+    const matchesSearch = !searchQuery ||   // If there is no search query, it automatically matches (returns true).
+      [task.title, task.description ?? '']
+       // .some returns a boolean
+       // Otherwise, it checks if the title or description contains the query (case-insensitive).
+        .some((text) => text.toLowerCase().includes(searchQuery));
+
+    // 2. Check if the task matches the active status filter ('all', 'done', or 'todo').
+    // If the filter is set to 'all', every task matches.
+    // If 'done', it includes the task only if task.done is true.
+    // else it's 'ongoing', so it includes the task only if task.done is false.
+    const matchesStatus = statusFilter === 'all' || 
+      (statusFilter === 'done' ? task.done : !task.done);
+    // Only return the task if it passes both the search and status filters
+    return matchesSearch && matchesStatus;
+  });
+}
+
 function getVisibleTasks() {
-  // uses global query const
-  if (!searchQuery) return tasks; // no filter, show all tasks (normal view in ALL tab)
-  // else, filter for matching tile/description text (search view within ALL tab)
-  return tasks.filter((task) =>
-    [task.title, task.description ?? '']  // if LHS null, default to RHS=''
-      // .some returns a boolean
-      .some((text) => text.toLowerCase().includes(searchQuery)) // Checks if any text in the array contains query
-  );
+  // use global task list as param
+  return applyFilters(tasks);
 }
 
 // Filter the tasks for each tab, then use renderTasks to display each subset.
@@ -248,7 +267,7 @@ function renderTaskViews() {
 
   // for each priority level, get the corresponding task list element and filter tasks by that priority
   Object.entries(priorityTaskLists).forEach(([priority, taskList], index) => {
-    const priorityTasks = tasks.filter((task) => task.priority === priority); // get all tasks that match the current priority and store in an array
+    const priorityTasks = applyFilters(tasks.filter((task) => task.priority === priority)); // filter the resulting list of tasks at each priority level and store in an array
     // display no. tasks in each priority level
     const priorityLabels = document.querySelectorAll(".priority-group-label");  // returns a node list
     // replaced count on each render;
@@ -564,5 +583,12 @@ toggleSearchBtn.addEventListener('click', () => {
 searchInput.addEventListener('input', () => {
   searchQuery = searchInput.value.trim().toLowerCase(); // set global query/filter const
   showTab(tabButtons[0]); // make sure user is on ALL tab view
+  renderTaskViews();
+});
+
+// Filter by done/ongoing tasks
+const filterDropdown = document.getElementById('status-filter');
+filterDropdown.addEventListener('change', (event) => { //  'change' detects when user clicks a different drop-down option, event = optino chosen
+  statusFilter = event.target.value;  // set filter value to all/ongoing/done dropdown option chosen
   renderTaskViews();
 });
