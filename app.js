@@ -52,6 +52,7 @@ addTaskBtn.addEventListener('click', () => {
 
 let editingTaskId = null; // null = add task, number = edit task
 let selectedGroup = null; // the name of the group currently being viewed, null if no group is selected
+let searchQuery = ''; // current search text, lowercase; '' means no filter
 
 // Return the unique groups that still have at least one unfinished task.
 function getActiveGroupNames() {
@@ -62,7 +63,7 @@ function getActiveGroupNames() {
   )].sort((first, second) => first.localeCompare(second));  // sort the group names alphabetically
 }
 
-// Show groups that belong to ongoing tasks, plus options to skip or add a group.
+// Show group options that belong to ongoing tasks, plus options to skip or add a group.
 function renderGroupOptions() {
   const selectedGroup = groupSelect.value;  // remember the user's selection so it can be restored after rebuilding the dropdown
   const activeGroups = getActiveGroupNames();
@@ -95,7 +96,7 @@ function renderGroupOptions() {
   groupSelect.value = validSelections.includes(selectedGroup) ? selectedGroup : '';
 }
 
-// Show group label buttons, or show the selected group's tasks with a way back.
+// Groups tab view, show group label buttons, or show the selected group's tasks with a way back.
 function renderGroupView() {
   const activeGroups = getActiveGroupNames();
   groupListContainer.replaceChildren(); // clear the group list container so it can be rebuilt with the current state of groups and tasks
@@ -111,7 +112,7 @@ function renderGroupView() {
       renderGroupView();  // recursively call renderGroupView() to show the group list again
     });
 
-    // Show the selected group's name and its tasks.
+    // Otherwise show the selected group's name and its tasks.
     const heading = document.createElement('h3'); // create h3 heading in html file for the selected group name
     heading.textContent = selectedGroup;  // set the h3 heading text to the selected group name
 
@@ -133,14 +134,23 @@ function renderGroupView() {
   }
   activeGroups.forEach((groupName) => {
     const groupButton = document.createElement('button'); // create a <button> for each group
+    const groupNameLabel = document.createElement('span');
+    const taskCountLabel = document.createElement('span');  // create new span element in HTML
+  
     groupButton.type = 'button';  // set the button type to "button" so it doesn't submit the form when clicked
-    groupButton.textContent = groupName;
+    groupButton.classList.add('group-button');
+
+    groupNameLabel.textContent = groupName;  // set button text
+    taskCountLabel.classList.add('group-task-count'); // add a class to the span element
+    // template literal converts no. tasks to string and adds " tasks" for display
+    taskCountLabel.textContent = `${tasks.filter((task) => task.group === groupName).length} tasks`;
+    groupButton.append(groupNameLabel, taskCountLabel);
     // when the user clicks a group button, set the selectedGroup to that group name and render the group view
     groupButton.addEventListener('click', () => {
       selectedGroup = groupName;
       renderGroupView();  // recursively call renderGroupView() to show the tasks in the selected group
     });
-    groupListContainer.append(groupButton);
+    groupListContainer.append(groupButton); // add new elements to HTML container
   });
 }
 
@@ -170,7 +180,7 @@ function renderTasks(taskList, tasksToRender) {
     const listItem = document.createElement('li');
 
     // set dataset attributes of each task to be referenced when clicking a task
-    // NOTE data-* attribute can ONLY hold TEXT/STRINGS
+    // NOTE data-* attribute can ONLY hold TEXT/STRINGS (e.g. converts null to "null")
     listItem.dataset.taskId = String(task.id);  // convert int id to string for storage
     listItem.dataset.taskTitle = task.title;
 
@@ -414,6 +424,7 @@ function openOptionsDialog(event) {
   const taskOptions = document.getElementById('task-options');
   const clickedTaskTitle = document.getElementById('clicked-task-title');
   const clickedTaskDescription = document.getElementById('clicked-task-description');
+  const clickedTaskGroup = document.getElementById('clicked-task-group');
   // If any of the required elements are missing, do nothing.
   if (!taskOptions || !clickedTaskTitle) {
     return;
@@ -428,6 +439,7 @@ function openOptionsDialog(event) {
   if (currTask === undefined) return;
 
   const taskDesc = currTask.description;  // this avoids a null value being converted to a string from running it through data- attribute
+  const taskGroup = currTask.group;
   console.log('desc:', taskDesc, 'for', currTask);
   // do not show null if there is no description
   if ( taskDesc === null || taskDesc == '') {
@@ -436,6 +448,15 @@ function openOptionsDialog(event) {
   } else {  // only set description text if not empty
     clickedTaskDescription.style.display = '';  // undo previous hide styles
     clickedTaskDescription.textContent = taskDesc;
+  }
+
+  // do not show null if there is no group label
+  if ( taskGroup === null || taskGroup == '') {
+    clickedTaskGroup.style.display = "none";
+    clickedTaskGroup.textContent = '';
+  } else {  // only set description text if not empty
+    clickedTaskGroup.style.display = '';  // undo previous hide styles
+    clickedTaskGroup.textContent = taskGroup;
   }
   // data attribute was defined in renderTasks() when the list item was created, so it can be used here to identify the task when the user clicks on it
   taskOptions.dataset.taskId = event.currentTarget.dataset.taskId;  // store task id in dialog box's data attribute so it can be used later to identify the task when the user clicks on it
@@ -492,3 +513,41 @@ function openAddTask(currTaskId = null) {
   addTask.showModal();
   document.getElementById('title').focus();
 }
+
+// search functionality
+
+// Return only the tasks whose title or description contains the search query.
+function getSearchedTasks() {
+  // uses global query const
+  if (!searchQuery) return tasks;
+  // else, search global lsit for matching tile/description text
+  return tasks.filter((task) =>
+    [task.title, task.description ?? '']  // if LHS null, default to RHS=''
+      .some((text) => text.toLowerCase().includes(searchQuery)) // Checks if any text in the array contains query
+  );
+}
+
+const toggleSearchBtn = document.getElementById('toggle-search');
+const searchBox = document.getElementById('search');
+const searchInput = document.getElementById('search-input');
+
+// Clicking the icon opens or closes the search box.
+toggleSearchBtn.addEventListener('click', () => {
+  searchBox.classList.toggle('open'); // dynamically add or remove class label 'open'
+
+  if (searchBox.classList.contains('open')) {
+    searchBox.style.display = ''; // mske visible
+    searchInput.focus();
+  } else {
+    // closing search: clear the filter and show every task again
+    searchInput.value = '';
+    searchQuery = ''; // reset global const
+    renderTaskViews();
+  }
+});
+
+// Filter LIVE as the user types using event 'input' (doesn't require submission)
+searchInput.addEventListener('input', () => {
+  searchQuery = searchInput.value.trim().toLowerCase(); // ignore case
+  renderTaskViews();
+});
