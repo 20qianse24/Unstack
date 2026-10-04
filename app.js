@@ -183,10 +183,10 @@ function renderTasks(taskList, tasksToRender) {
     // NOTE data-* attribute can ONLY hold TEXT/STRINGS (e.g. converts null to "null")
     listItem.dataset.taskId = String(task.id);  // convert int id to string for storage
     listItem.dataset.taskTitle = task.title;
+    listItem.dataset.priority = task.priority;
 
-    // don't use these, since null values for optional fields will be stored as literal "null" string in data-*
+    // don't use these, since OPTIONAL fields can be null, so will be stored as literal "null" string in data-*
     /*listItem.dataset.taskDescription = task.description;
-    listItem.dataset.taskPriority = task.priority;
     listItem.dataset.taskGroup = task.group;
     listItem.dataset.taskDone = task.done;*/
 
@@ -254,8 +254,8 @@ function renderTaskViews() {
     // replaced count on each render;
     // // .length is a property not a function (so not .length())
     if (priorityLabels[index]) {  // index is param in forEach loop, indices in node list
-      // '${}' is like f string formatting
-      priorityLabels[index].textContent += `${priorityTasks.length} tasks`;
+      // 'text ${} text ' is like f string formatting
+      priorityLabels[index].textContent = `${priority}: ${priorityTasks.length} tasks`;
     }
     // pass the array of tasks to renderTasks() to display them in the corresponding priority list
     renderTasks(taskList, priorityTasks);

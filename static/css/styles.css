@@ -1,50 +1,352 @@
+/* ==========================================================
+   UNSTACK – styles.css
+   Sticky-note palette + hand-drawn wireframe feel
+   ========================================================== */
+
+@import url('https://fonts.googleapis.com/css2?family=Patrick+Hand&display=swap');
+
+:root {
+  --ink: #1f1f24;
+  --ink-soft: #6b6b75;
+  --paper: #ffffff;
+
+  /* sticky-note colours from the wireframes */
+  --pink: #f6d0ea;
+  --orange: #f7d4a4;
+  --blue: #c9ddf8;       /* low priority (and the + / action buttons) */
+  --note-default: #eeeef2; /* until a task has a priority attribute */
+
+  --font: 'Patrick Hand', 'Segoe Print', 'Bradley Hand', 'Comic Sans MS', cursive;
+  --line: 2px solid var(--ink);
+  --footer-h: 82px;   /* 1rem padding + 48px button + 1rem padding + 2px border */
+}
+
+/* ---------- Reset / base ---------- */
+*, *::before, *::after { box-sizing: border-box; }
+
+[hidden] { display: none !important; }
+
+html { -webkit-text-size-adjust: 100%; }
 
 body {
-    display: flex;
-    flex-direction: column;
-    min-height: 100vh;
-    align-items: center;
+  display: flex;
+  flex-direction: column;
+  margin: 0 auto;
+  max-width: 480px;
+  min-height: 100vh;
+  min-height: 100dvh;
+  background: var(--paper);
+  color: var(--ink);
+  font-family: var(--font);
+  font-size: 1.1rem;
+  line-height: 1.3;
+  /* keeps content clear of the iOS status bar (black-translucent) */
+  padding-top: env(safe-area-inset-top, 0px);
+  padding-bottom: calc(var(--footer-h) + env(safe-area-inset-bottom, 0px));
 }
 
+button, input, select, textarea {
+  font: inherit;
+  color: inherit;
+}
+
+button { cursor: pointer; }
+
+:focus-visible {
+  outline: 3px solid #5b8def;
+  outline-offset: 2px;
+}
+
+/* Task list styling */
+ul { list-style: none; margin: 0; padding: 0; }
+
+/* Section headings are redundant with the tabs, keep them for screen readers only */
+.task-tab > h2 {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+}
+
+/* ---------- App title ---------- */
+h1 {
+  margin: 0;
+  padding: 14px 20px 6px;
+  text-align: center;
+  font-size: 1rem;
+  font-weight: normal;
+  letter-spacing: 0.18em;
+}
+
+/* ---------- Header: tabs + search ---------- */
+header {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  padding: 8px 20px 0;
+  border-bottom: var(--line);
+}
+
+.tab-buttons {
+  display: flex;
+  gap: 22px;
+}
+
+.tab-buttons button {
+  background: none;
+  border: 0;
+  border-bottom: 2px solid transparent;
+  padding: 6px 0 8px;
+  margin-bottom: -2px;           /* sits on top of the header rule */
+  font-size: 1.25rem;
+  color: var(--ink-soft);
+}
+
+.tab-buttons button.active {
+  color: var(--ink);
+  border-bottom-color: var(--ink);
+}
+
+/* Search icon styling */
+.icon-btn {
+  background: none;
+  border: 0;
+  padding: 0.4rem;
+  margin-right: -0.4rem;   /* keeps the icon flush with the header's side padding */
+  line-height: 0;
+  color: var(--ink);
+}
+
+.icon-btn svg {
+  width: 24px;
+  height: 24px;
+  stroke: currentColor;
+  fill: none;
+  stroke-width: 1.8;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+/* ---------- Search ---------- */
+#search {
+  padding: 14px 20px 0;
+}
+
+#search-input {
+  width: 100%;
+  padding: 10px 14px;
+  background: var(--paper);
+  border: var(--line);
+  border-radius: 10px;
+  -webkit-appearance: none;
+  appearance: none;
+}
+
+#search-input::placeholder { color: var(--ink-soft); }
+
+/* ---------- Main ---------- */
 main {
-    flex: 1;
+  flex: 1;
+  padding: 26px 20px 20px;
 }
 
-/*
-Task list styling
-*/
-ul {
-    list-style: none;
-    padding: 0;
+/* ---------- Task "sticky notes" (All tab, groups, priorities) ---------- */
+.task-tab li {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-height: 62px;
+  margin-bottom: 18px;
+  padding: 14px 18px;
+  border-radius: 6px;
+  font-size: 1.2rem;
+  cursor: pointer;
+  background: var(--note-default);
+  overflow-wrap: anywhere;
 }
 
-#group-list .group-button {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    gap: 0.25rem;
+/* Colour = priority. Needs `listItem.dataset.priority = task.priority;`
+   in renderTasks() (see note). */
+.task-tab li[data-priority="high"] { background: var(--pink); }
+.task-tab li[data-priority="mid"]  { background: var(--orange); }
+.task-tab li[data-priority="low"]  { background: var(--blue); }
+
+.task-tab li.done {
+  opacity: 0.5;
+  cursor: default;
 }
 
-#group-list .group-task-count {
-    font-size: 0.85em;
-    font-weight: normal;
+.task-tab li span {
+  flex: 1;
+  min-width: 0;
 }
 
-/*
-Options window styling
-*/
-
-#clicked-task-description {
-    white-space: pre-wrap;  /*preserve line breaks as HTML collapses into single space otherwise*/
+/* Custom checkbox */
+.task-tab li input[type="checkbox"] {
+  flex: none;
+  -webkit-appearance: none;
+  appearance: none;
+  width: 24px;
+  height: 24px;
+  margin: 0;
+  border: var(--line);
+  border-radius: 7px;
+  background: rgba(255, 255, 255, 0.7);
+  cursor: pointer;
 }
 
-/*
-Style pop up box
-*/
+.task-tab li input[type="checkbox"]:checked {
+  background: var(--ink)
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='white' stroke-width='3.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M5 12.5l4.5 4.5L19 7.5'/%3E%3C/svg%3E")
+    center / 80% no-repeat;
+}
+
+/* ---------- Priorities tab: three big coloured bundles ---------- */
+.priority-section {
+  margin-bottom: 22px;
+  padding: 20px 18px 6px;
+  border-radius: 6px;
+  background: var(--pink);
+}
+
+#mid-priority { background: var(--orange); }
+#low-priority { background: var(--blue); }
+
+.priority-group-label {
+  margin: 0 0 16px;
+  font-size: 1.5rem;
+  font-weight: normal;
+}
+
+/* the bundle carries the colour, so tasks inside are plain white */
+.priority-section ul li,
+.priority-section ul li[data-priority] {
+  background: var(--paper);
+  min-height: 54px;
+  margin-bottom: 14px;
+}
+
+/* empty bundles collapse to just their label */
+.priority-section ul:empty { display: none; }
+.priority-section:has(ul:empty) { padding-bottom: 20px; }
+.priority-section:has(ul:empty) .priority-group-label { margin-bottom: 0; }
+
+/* ---------- Groups tab: outlined boxes ---------- */
+#group-list:has(.group-button) {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 22px 18px;
+}
+
+.group-button {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-start;
+  align-items: center;
+  gap: 0.25rem;
+  min-height: 120px;
+  padding: 44px 14px 14px;
+  text-align: center;
+  background: var(--paper);
+  border: var(--line);
+  border-radius: 2px;
+  overflow: hidden;
+}
+
+/* the title rule across the top of each box, as drawn in the wireframe */
+.group-button::before {
+  content: '';
+  position: absolute;
+  left: 12px;
+  right: 12px;
+  top: 26px;
+  border-top: var(--line);
+}
+
+.group-button:active { background: #f4f4f6; }
+
+.group-button > span:first-child {
+  font-size: 1.5rem;
+  line-height: 1.1;
+  overflow-wrap: anywhere;
+}
+
+.group-task-count {
+  font-size: 0.85em;
+  font-weight: normal;
+  color: var(--ink-soft);
+}
+
+/* Group detail view: back link + heading + task list */
+#group-list > button:not(.group-button) {
+  background: none;
+  border: 0;
+  padding: 0;
+  margin-bottom: 8px;
+  color: var(--ink-soft);
+}
+
+#group-list > button:not(.group-button)::before { content: '\2190\00a0'; }
+
+#group-list > h3 {
+  margin: 0 0 20px;
+  font-size: 1.7rem;
+  font-weight: normal;
+}
+
+#group-list > p {
+  margin: 40px 0 0;
+  text-align: center;
+  color: var(--ink-soft);
+}
+
+/* ---------- Footer with centred + button ---------- */
+footer {
+  position: fixed;
+  left: 50%;
+  bottom: 0;
+  transform: translateX(-50%);
+  width: 100%;
+  max-width: 480px;
+  padding: 1rem 1rem calc(1rem + env(safe-area-inset-bottom, 0px));
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--paper);
+  border-top: var(--line);
+}
+
+#new-task {
+  width: 48px;
+  height: 48px;
+  display: grid;
+  place-items: center;
+  padding: 0 0 4px;
+  border: var(--line);
+  border-radius: 50%;
+  background: var(--blue);
+  font-size: 2rem;
+  line-height: 1;
+}
+
+#new-task:active { transform: scale(0.94); }
+
+/* ---------- Dialogs ---------- */
+/* Style pop up box */
 dialog {
-    width: 90%;
-    max-width: 400px;
-    padding: 1rem;
+  width: 90%;
+  max-width: 400px;
+  max-height: 90dvh;
+  padding: 1rem;
+  border: var(--line);
+  border-radius: 14px;
+  background: var(--paper);
+  color: var(--ink);
+  font-family: var(--font);
+  overflow-y: auto;
 }
 
 dialog::backdrop {
@@ -52,29 +354,122 @@ dialog::backdrop {
   backdrop-filter: blur(4px);            /* Blurs underlying content */
 }
 
-/*
-Footer Styling
-*/
-footer {
-    padding: 1rem;
+dialog h4 {
+  margin: 0 36px 18px 0;
+  font-size: 1.6rem;
+  font-weight: normal;
+  overflow-wrap: anywhere;
 }
-  
-/*
-Search icon styling
-*/
-.icon-btn {
-    background: none;
-    border: 0;
-    padding: 0.4rem;
-    line-height: 0;
+
+#close-add-task,
+#close-window {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  display: grid;
+  place-items: center;
+  background: none;
+  border: var(--line);
+  border-radius: 50%;
+  font-size: 0.95rem;
+  line-height: 1;
 }
-.icon-btn svg {
-    width: 24px;
-    height: 24px;
-    stroke: currentColor;
-    fill: none;
-    stroke-width: 1.8;
-    stroke-linecap: round;
-    stroke-linejoin: round;
-    color:black;
+
+/* ---------- Add / edit form ---------- */
+.form-group { margin-bottom: 16px; }
+
+.form-label { margin-bottom: 6px; }
+
+.form-label label span { color: #d6336c; }
+
+.form-element input,
+.form-element textarea,
+.form-element select {
+  display: block;
+  width: 100%;
+  padding: 10px 12px;
+  background: var(--paper);
+  border: var(--line);
+  border-radius: 8px;
+  -webkit-appearance: none;
+  appearance: none;
+}
+
+.form-element textarea { resize: vertical; }
+
+.form-element select {
+  padding-right: 36px;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%231f1f24' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 10px center;
+  background-size: 18px;
+}
+
+.form-element input::placeholder,
+.form-element textarea::placeholder { color: var(--ink-soft); }
+
+/* "Add new group" text box sits under the dropdown */
+#new-group { margin-top: 10px; }
+
+#submit-btn,
+#edit-btn,
+#delete-btn {
+  padding: 10px 22px;
+  border: var(--line);
+  border-radius: 999px;
+  background: var(--blue);
+  font-size: 1.15rem;
+}
+
+#submit-btn { width: 100%; margin-top: 6px; }
+
+#submit-btn:active,
+#edit-btn:active,
+#delete-btn:active { transform: scale(0.97); }
+
+/* ---------- Task options dialog ---------- */
+/* Title and group tag share the first row; description and buttons wrap below.
+   Needs [open] so the closed dialog stays hidden. */
+#task-options[open] {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.75rem 0.6rem;
+  padding-right: 3rem;     /* room for the close button */
+}
+
+#task-options #clicked-task-title { order: 1; margin: 0; }
+#clicked-task-group               { order: 2; }
+#clicked-task-description         { order: 3; }
+#edit-btn                         { order: 4; }
+#delete-btn                       { order: 5; }
+
+#clicked-task-description {
+  flex: 0 0 100%;
+  margin: 0;
+  white-space: pre-wrap;  /* preserve line breaks; HTML collapses them into a single space otherwise */
+  overflow-wrap: anywhere;
+}
+
+#clicked-task-group {
+  display: inline-block;
+  margin: 0;
+  padding: 2px 12px;
+  border: var(--line);
+  border-radius: 999px;
+  background: transparent;
+  font-size: 0.95rem;
+}
+
+#edit-btn,
+#delete-btn { margin: 0; }
+
+#delete-btn { background: var(--pink); }
+
+/* ---------- Motion preferences ---------- */
+@media (prefers-reduced-motion: reduce) {
+  * { transition: none !important; animation: none !important; }
 }
