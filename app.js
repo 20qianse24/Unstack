@@ -54,6 +54,8 @@ let editingTaskId = null; // null = add task, number = edit task
 let selectedGroup = null; // the name of the group currently being viewed, null if no group is selected
 let searchQuery = ''; // current search text, lowercase; '' means no search filter
 let statusFilter = 'all' // filter tasks by done status, 'all' means no status based filter ('ongoing', 'done')
+let draggedItem = null; // dragged task item to reorder
+placeAfter = false;
 
 // Return the unique groups that still have at least one unfinished task.
 function getActiveGroupNames() {
@@ -186,6 +188,9 @@ function renderTasks(taskList, tasksToRender) {
     listItem.dataset.taskTitle = task.title;
     listItem.dataset.priority = task.priority;
 
+    listItem.setAttribute('draggable', 'true'); // set up for reorder task feature
+    listItem.classList.add('task-item');  // label as a task item
+
     // don't use these, since OPTIONAL fields can be null, so will be stored as literal "null" string in data-*
     /*listItem.dataset.taskDescription = task.description;
     listItem.dataset.taskGroup = task.group;
@@ -221,8 +226,8 @@ function renderTasks(taskList, tasksToRender) {
     });
 
     const taskText = document.createElement('span');
-    // $ is js string formatting syntax
-    taskText.textContent = ` ${task.title} (${task.priority})`; // add a space before the task title so it doesn't run into the checkbox, and show the task's priority in parentheses
+    // ${} is js string formatting syntax
+    taskText.textContent = ` ${task.title}`; // add a space before the task title so it doesn't run into the checkbox, and show the task's priority in parentheses
     listItem.append(doneCheckbox, taskText);  // append the checkbox and task title to the list item so they are displayed together
 
     taskList.append(listItem);  // append the list item to the task list so it is displayed on the page
@@ -354,7 +359,7 @@ taskForm.addEventListener('submit', (event) => {
 
 // Find the tab buttons and task tabs in index.html to respond to buttons and update page.
 const tabButtons = document.querySelectorAll('.tab-buttons button[data-tab]');  // get all buttons with class .tab-buttons and data-tab attribute
-const taskTabs = document.querySelectorAll('.task-tab');
+const taskTabs = document.querySelectorAll('.task-tab');  // returns a node-list
 function showTab(button) 
 {
   const targetTabId = button.dataset.tab; // Get id of tab to make visible from button's data-tab attribute
@@ -440,6 +445,7 @@ function setupTaskOptionsDialog() {
       return;
     }
 
+    // .splice modifies ORIGINAL array in place
     tasks.splice(currTaskIndex, 1); // remove the 1 deleted task from the tasks array
 
     saveTasks();
@@ -526,7 +532,7 @@ function openAddTask(currTaskId = null) {
   const formTitle = document.getElementById('add/edit-form-title');
 
   if (currTaskId !== null) {  // make edit task dynamic changes to form
-    // search gloabl task list for matching id to current task id
+    // search global task list for matching id to current task id
     const currTask = tasks.find((task) => task.id === currTaskId);
     if (currTask === undefined) return;
 
@@ -535,7 +541,7 @@ function openAddTask(currTaskId = null) {
     formTitle.textContent = 'Edit Task';
 
     renderGroupOptions();         // so the group option exists before selecting it
-    // set input fields to current task info
+    // set input fields to current task info for editing
     document.getElementById('title').value = currTask.title;
     // set to '' null if no input provided
     document.getElementById('description').value = currTask.description ?? '';
@@ -592,3 +598,72 @@ filterDropdown.addEventListener('change', (event) => { //  'change' detects when
   statusFilter = event.target.value;  // set filter value to all/ongoing/done dropdown option chosen
   renderTaskViews();
 });
+
+// Drag and reorder tasks feature
+
+// 1. Track which item is being dragged
+allTaskList.addEventListener('dragstart', (event) => {
+  if (event.target.classList.contains('task-item')) {
+    draggedItem = event.target; // set object being moved
+    setTimeout(() => event.target.classList.add('dragging'), 0);  // add stying class when user drags
+  }
+});
+
+// 2. Handle the reordering calculation when dragging over items
+allTaskList.addEventListener('dragover', (event) => {
+  event.preventDefault(); // needed for parent container to handle dropping
+  // Find the task item the mouse is currently hovering (i.e. insert before or after this other task)
+  const targetTask = event.target.closest('.task-item');
+
+  if (targetTask && targetTask != draggedItem) {  // if the dragged task has been moved locations
+    // get bounding rectangle of task being hovered over
+    const bounding = targetTask.getBoundingClientRect();
+    // calculate vertical midpoint of target item
+    const offset = bounding.y + bounding.height / 2;  // element.y to directly get base y coordinate
+
+    // e.clientY and e.client X are built in mouse coordinate trackers
+    // use element.after() and element.before() built in methods to insert new order
+    if (event.clientY - offset > 0)  {
+      // Cursor is BELOW vertical midpoint
+      // insert dragged item AFTER target item
+      targetTask.after(draggedItem);
+      placeAfter = true;
+    } else {  // if cursor is ABOVE midpoint, insert dragged task BEFORE the target
+      targetTask.before(draggedItem);
+      placeAfter = false;
+    }
+  }
+});
+
+/// 3. Clean up styles when drag ends
+allTaskList.addEventListener('dragend', (event) => {
+  // get dragged task
+  const taskItem = event.target.closest('.task-item');
+  if (!taskItem) return;
+
+  taskItem.classList.remove('dragging');
+  draggedItem = null; // reset global tracker
+
+  // update array and save to localStorage
+  saveOrderFromDom();
+});
+
+// update array with new order before saving to localStorage for peristence
+function saveOrderFromDom() {
+  // node list of the NEW order of tasks - taken from reordered HTML
+  // use ... to push into ARRAY to apply map methods
+  const newOrder = [...allTaskList.querySelectorAll('.task-item')]
+  .map((li) => Number(li.dataset.taskId));  // array of ids in the new updated order
+
+  // keep tasks hidden by any filters untouched, not affected by reordering
+  const hiddenTasks = tasks.filter((task) => !newOrder.includes(task.id));
+
+  // visibile tasks, look up by id in the new order
+  const reorderedTasks = newOrder.map((id) => tasks.find((task) => task.id === id));
+
+  // replace old task array in place
+  tasks.splice(0, tasks.length, ...reorderedTasks, ...hiddenTasks);
+
+    saveTasks();
+    renderTaskViews();
+  }
