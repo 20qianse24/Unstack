@@ -668,7 +668,6 @@ allTaskList.addEventListener('dragend', (event) => {
   // get dragged task
   const taskItem = event.target.closest('.task-item');
   if (!taskItem) return;
-
   taskItem.classList.remove('dragging');
   draggedItem = null; // reset global tracker
 
