@@ -12,7 +12,7 @@ Unstack is a lightweight task management app designed to help you organise your 
 - **Priority-based organisation** — Assign priority labels to tasks and organise them into priority levels, with numbering to indicate their relative order.
 - **Custom task groups** — Create your own groups to organise tasks by category, project, or context.
 - **Task descriptions and notes** — Add optional longer descriptions to keep relevant information alongside each task.
-- **Drag-and-drop reordering** — Rearrange tasks to reflect changing priorities and preferences.
+- **Drag-and-drop reordering** — Rearrange tasks in the All view; on phones, press and hold a task, then drag it.
 - **Search and filtering** — Find tasks using the search bar and available filters.
 - **Offline support** — Access the app without an internet connection after it has been loaded and cached.
 - **Local data storage** — Keep task data on your device without requiring an account.

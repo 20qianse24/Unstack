@@ -178,6 +178,10 @@ main {
   cursor: default;
 }
 
+.task-tab li.dragging {
+  opacity: 0.55;
+}
+
 .task-tab li span {
   flex: 1;
   min-width: 0;

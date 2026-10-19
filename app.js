@@ -59,7 +59,9 @@ let searchQuery = ''; // current search text, lowercase; '' means no search filt
 let statusFilter = 'all' // filter tasks by done status, 'all' means no status based filter ('ongoing', 'done')
 let priorityFilter = 'all'
 let draggedItem = null; // dragged task item to reorder
-placeAfter = false;
+let touchDragTimer = null;
+let touchStartPoint = null;
+let suppressTaskClick = false;
 
 // Return the unique groups that still have at least one unfinished task.
 function getActiveGroupNames() {
@@ -225,6 +227,10 @@ function renderTasks(taskList, tasksToRender) {
     });
 
     listItem.addEventListener('click', (event) => {
+      if (suppressTaskClick) {
+        event.preventDefault();
+        return;
+      }
       if (event.target === doneCheckbox) {  // if the user clicked the checkbox, don't open the dialog box
         return;
       }
@@ -627,53 +633,113 @@ priorityFilterDropdown.addEventListener('change', (event) => { //  'change' dete
   renderTaskViews();
 });
 
-// Drag and reorder tasks feature
+// Drag and reorder tasks feature - mouse based functionality
 
 // 1. Track which item is being dragged
 allTaskList.addEventListener('dragstart', (event) => {
-  if (event.target.classList.contains('task-item')) {
-    draggedItem = event.target; // set object being moved
-    setTimeout(() => event.target.classList.add('dragging'), 0);  // add stying class when user drags
-  }
+  const taskItem = event.target.closest('.task-item');
+  if (!taskItem) return;
+  draggedItem = taskItem;
+  setTimeout(() => taskItem.classList.add('dragging'), 0);
 });
 
 // 2. Handle the reordering calculation when dragging over items
 allTaskList.addEventListener('dragover', (event) => {
   event.preventDefault(); // needed for parent container to handle dropping
-  // Find the task item the mouse is currently hovering (i.e. insert before or after this other task)
-  const targetTask = event.target.closest('.task-item');
-
-  if (targetTask && targetTask != draggedItem) {  // if the dragged task has been moved locations
-    // get bounding rectangle of task being hovered over
-    const bounding = targetTask.getBoundingClientRect();
-    // calculate vertical midpoint of target item
-    const offset = bounding.y + bounding.height / 2;  // element.y to directly get base y coordinate
-
-    // e.clientY and e.client X are built in mouse coordinate trackers
-    // use element.after() and element.before() built in methods to insert new order
-    if (event.clientY - offset > 0)  {
-      // Cursor is BELOW vertical midpoint
-      // insert dragged item AFTER target item
-      targetTask.after(draggedItem);
-      placeAfter = true;
-    } else {  // if cursor is ABOVE midpoint, insert dragged task BEFORE the target
-      targetTask.before(draggedItem);
-      placeAfter = false;
-    }
-  }
+  reorderTaskAt(event.target.closest('.task-item'), event.clientY);
 });
 
-/// 3. Clean up styles when drag ends
+// 3. Clean up styles when a desktop drag ends.
 allTaskList.addEventListener('dragend', (event) => {
-  // get dragged task
   const taskItem = event.target.closest('.task-item');
   if (!taskItem) return;
   taskItem.classList.remove('dragging');
-  draggedItem = null; // reset global tracker
-
-  // update array and save to localStorage
+  draggedItem = null;
   saveOrderFromDom();
 });
+
+
+/*
+ * Touch reordering supplements the HTML drag-and-drop handlers above, because
+ * mobile browsers do not consistently generate those events for finger input.
+ * Requiring a brief hold distinguishes a deliberate drag from a normal scroll.
+ */
+
+allTaskList.addEventListener('touchstart', (event) => {
+  // Only start a reorder gesture for ONE finger; multi-touch is left to the browser.
+  if (event.touches.length !== 1) return;
+
+  // Ignore touches outside task rows and on checkboxes, which have their own action.
+  const taskItem = event.target.closest('.task-item');
+  if (!taskItem || event.target.closest('input')) return;
+
+  // Remember the initial position so touchmove can tell a hold from a scroll.
+  const touch = event.touches[0];
+  touchStartPoint = { x: touch.clientX, y: touch.clientY };
+
+  // Start dragging only after the finger remains mostly still for 250 ms.
+  // The timer is cancelled below if the user starts moving first.
+  touchDragTimer = setTimeout(() => {
+    draggedItem = taskItem;
+    taskItem.classList.add('dragging');
+  }, 250);
+}, { passive: true }); // A passive start listener never blocks native scrolling.
+
+allTaskList.addEventListener('touchmove', (event) => {
+  if (!draggedItem) {
+    // Before the hold completes, treat movement as scrolling. Cancel the pending
+    // drag once the finger moves more than 8 px from where the touch began.
+    if (touchDragTimer && touchStartPoint && event.touches.length) {
+      const touch = event.touches[0];
+      if (Math.hypot(touch.clientX - touchStartPoint.x, touch.clientY - touchStartPoint.y) > 8) {
+        clearTimeout(touchDragTimer);
+        touchDragTimer = null;
+        touchStartPoint = null;
+      }
+    }
+    return;
+  }
+
+  // Once dragging, prevent the page from scrolling and find the row currently
+  // underneath the finger. elementFromPoint works even when the finger is over
+  // a child element such as the task title or checkbox.
+  event.preventDefault();
+  const touch = event.touches[0];
+  const target = document.elementFromPoint(touch.clientX, touch.clientY);
+  reorderTaskAt(target?.closest('.task-item'), touch.clientY);
+}, { passive: false }); // Must be non-passive so preventDefault() can stop scrolling.
+
+// Both lifting the finger and the browser cancelling a touch end the gesture.
+allTaskList.addEventListener('touchend', finishTouchDrag);
+allTaskList.addEventListener('touchcancel', finishTouchDrag);
+
+// Move the dragged row before or after the row under the pointer/finger,
+// choosing the insertion side based on that row's vertical midpoint.
+function reorderTaskAt(targetTask, clientY) {
+  if (!targetTask || !draggedItem || targetTask === draggedItem) return;
+  const bounding = targetTask.getBoundingClientRect();
+  if (clientY > bounding.y + bounding.height / 2) {
+    targetTask.after(draggedItem);
+  } else {
+    targetTask.before(draggedItem);
+  }
+}
+
+// Clear gesture state after touch end/cancel. If a drag actually started,
+// persist the resulting DOM order and suppress the synthetic click that some
+// mobile browsers emit after a completed touch gesture.
+function finishTouchDrag() {
+  if (touchDragTimer) clearTimeout(touchDragTimer);
+  touchDragTimer = null;
+  touchStartPoint = null;
+  if (!draggedItem) return; // No hold completed, so there is no reorder to save.
+
+  draggedItem.classList.remove('dragging');
+  draggedItem = null;
+  suppressTaskClick = true;
+  setTimeout(() => { suppressTaskClick = false; }, 500);
+  saveOrderFromDom();
+}
 
 // update array with new order before saving to localStorage for peristence
 function saveOrderFromDom() {
