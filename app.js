@@ -40,6 +40,9 @@ const priorityTaskLists = {
 const groupSelect = document.getElementById('group'); //
 const newGroupInput = document.getElementById('new-group');
 const addNewGroupValue = '__add_new_group__';
+// specify that filterBox should be one element, not a node list with "." and querySelector instead of querySelectorAll
+const filterBox = document.querySelector('.filter-box');
+const header = document.querySelector('header');
 
 // Add event listener to the add task "+" button to open the add task dialog box if clicked.
 // added at the top since its always visible unlike dynamic task list items
@@ -102,6 +105,7 @@ function renderGroupOptions() {
 
 // Groups tab view, show group label buttons, or show the selected group's tasks with a way back.
 function renderGroupView() {
+
   const activeGroups = getActiveGroupNames();
   groupListContainer.replaceChildren(); // clear the group list container so it can be rebuilt with the current state of groups and tasks
 
@@ -114,6 +118,7 @@ function renderGroupView() {
     backButton.addEventListener('click', () => {
       selectedGroup = null;
       renderGroupView();  // recursively call renderGroupView() to show the group list again
+      updateFilterVisibility();
     });
 
     // Otherwise show the selected group's name and its tasks.
@@ -153,6 +158,7 @@ function renderGroupView() {
     groupButton.addEventListener('click', () => {
       selectedGroup = groupName;
       renderGroupView();  // recursively call renderGroupView() to show the tasks in the selected group
+      updateFilterVisibility();
     });
     groupListContainer.append(groupButton); // add new elements to HTML container
   });
@@ -368,17 +374,25 @@ const tabButtons = document.querySelectorAll('.tab-buttons button[data-tab]');  
 const taskTabs = document.querySelectorAll('.task-tab');  // returns a node-list
 function showTab(button) 
 {
-  const targetTabId = button.dataset.tab; // Get id of tab to make visible from button's data-tab attribute
-  const targetTab = document.getElementById(targetTabId);
+  const targetTabId = button.dataset.tab; // Get id of current tab to make visible from button's data-tab attribute
+  const targetTab = document.getElementById(targetTabId); // current visible tab from user selection
 
   taskTabs.forEach((tab) => {
-    tab.hidden = (tab !== targetTab); // when tab is not the target tab, set tab to hidden, otherwise show it
-  });
+    tab.hidden = (tab !== targetTab); // when a tab is not the target tab, set tab to hidden, otherwise show it
+    updateFilterVisibility();
+    });
   tabButtons.forEach((tabButton) => {
     // .toggle adds it if missing, removes it if present
     // add '.active' class to the clicked <button> to display and remove it from others to hide (modify html)
     tabButton.classList.toggle('active', tabButton === button);
   });
+}
+
+function updateFilterVisibility() {
+  // boolean, group view page visible T/F
+  const groupOverview = !document.getElementById('tab-groups').hidden && selectedGroup === null;
+  filterBox.style.display = groupOverview ? 'none' : '';  // hide filter option on group view when no tasks are visible (boolean statement)
+  header.style.marginBottom = groupOverview ? '5%' : '';  // add a margin if filter is hidden for better spacing
 }
 
 // Add click event listeners to each tab button to show the corresponding tab when clicked.
@@ -457,6 +471,7 @@ function setupTaskOptionsDialog() {
     saveTasks();
     renderTaskViews();
     renderGroupOptions();
+    updateFilterVisibility();
     taskOptions.close();  // close the dialog box after deleting the task
   });
 
