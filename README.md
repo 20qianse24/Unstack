@@ -39,7 +39,26 @@ Unstack runs directly in your browser, but you can install it on your phone as a
 3. Select **Install app** or **Add to Home screen
 
 ### App Preview
-![Unstack task manager screenshot](defaultPage/screenshot.png)
-![Unstack task manager screenshot](assets/addTask.png)
-![Unstack task manager screenshot](groupsView/screenshot.png)
-![Unstack task manager screenshot](groupsView/screenshot.png)
+<table>
+  <tr>
+    <td align="center">
+      <strong>Default View</strong><br>
+      <img src="assets/defaultPage.png" width="400" alt="Default view">
+    </td>
+    <td align="center">
+      <strong>Add Task</strong><br>
+      <img src="assets/addTask.png" width="200" alt="Add Task view">
+    </td>
+    <td align="center">
+      <strong>Customisable Groups</strong><br>
+      <img src="assets/groupsView.png" width="200" alt="Customisable groups view">
+    </td>
+    <td align="center">
+      <strong>Viewing a Customised Group</strong><br>
+      <img src="assets/groupView.png" width="200" alt="Viewing a customised group">
+    </td>
+  </tr>
+</table>
+
+### Project Documentation Link
+https://docs.google.com/document/d/11exbiPnlyoz80JmdgnJT9bep0jpFX68UlBILdIxjWBI/edit?usp=sharing
