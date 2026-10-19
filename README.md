@@ -37,3 +37,9 @@ Unstack runs directly in your browser, but you can install it on your phone as a
 1. Open [Unstack](https://20qianse24.github.io/Unstack/) in **Chrome**.
 2. Tap the three-dot menu in the top-right corner.
 3. Select **Install app** or **Add to Home screen
+
+### App Preview
+![Unstack task manager screenshot](defaultPage/screenshot.png)
+![Unstack task manager screenshot](assets/addTask.png)
+![Unstack task manager screenshot](groupsView/screenshot.png)
+![Unstack task manager screenshot](groupsView/screenshot.png)
