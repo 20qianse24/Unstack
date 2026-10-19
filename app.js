@@ -54,6 +54,7 @@ let editingTaskId = null; // null = add task, number = edit task
 let selectedGroup = null; // the name of the group currently being viewed, null if no group is selected
 let searchQuery = ''; // current search text, lowercase; '' means no search filter
 let statusFilter = 'all' // filter tasks by done status, 'all' means no status based filter ('ongoing', 'done')
+let priorityFilter = 'all'
 let draggedItem = null; // dragged task item to reorder
 placeAfter = false;
 
@@ -254,8 +255,13 @@ function applyFilters(taskList) { // use nearly anywhere you use tasks.filter to
     // else it's 'ongoing', so it includes the task only if task.done is false.
     const matchesStatus = statusFilter === 'all' || 
       (statusFilter === 'done' ? task.done : !task.done);
-    // Only return the task if it passes both the search and status filters
-    return matchesSearch && matchesStatus;
+    // 3. Check if the task matches the active priority filter ('all', 'high', 'mid', or low).
+    // If task.priority contains the strings 'high', 'mid', or 'low', compare it directly with the selected filter:
+    const matchesPriority =
+    priorityFilter === 'all' || task.priority === priorityFilter;
+
+    // Only return the task if it passes all the search and status and priority filters
+    return matchesSearch && matchesStatus && matchesPriority;
   });
 }
 
@@ -599,6 +605,13 @@ filterDropdown.addEventListener('change', (event) => { //  'change' detects when
   renderTaskViews();
 });
 
+// Filter by priority on any tab
+const priorityFilterDropdown = document.getElementById('priority-filter');
+priorityFilterDropdown.addEventListener('change', (event) => { //  'change' detects when user clicks a different drop-down option, event = optino chosen
+  priorityFilter = event.target.value;  // set filter value to priority dropdown option chosen
+  renderTaskViews();
+});
+
 // Drag and reorder tasks feature
 
 // 1. Track which item is being dragged
@@ -654,14 +667,15 @@ function saveOrderFromDom() {
   // use ... to push into ARRAY to apply map methods
   const newOrder = [...allTaskList.querySelectorAll('.task-item')]
   .map((li) => Number(li.dataset.taskId));  // array of ids in the new updated order
-
+  // next, split newOrder into hidden and visible tasks - 2 new arrays
   // keep tasks hidden by any filters untouched, not affected by reordering
   const hiddenTasks = tasks.filter((task) => !newOrder.includes(task.id));
 
   // visibile tasks, look up by id in the new order
+  // map creates new array without mutating original
   const reorderedTasks = newOrder.map((id) => tasks.find((task) => task.id === id));
 
-  // replace old task array in place
+  // replace entire old task array in place (from index 0 to the end), so maintain original array reference
   tasks.splice(0, tasks.length, ...reorderedTasks, ...hiddenTasks);
 
     saveTasks();
