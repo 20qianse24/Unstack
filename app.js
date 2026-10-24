@@ -40,6 +40,9 @@ const priorityTaskLists = {
 const groupSelect = document.getElementById('group'); //
 const newGroupInput = document.getElementById('new-group');
 const addNewGroupValue = '__add_new_group__';
+// specify that filterBox should be one element, not a node list with "." and querySelector instead of querySelectorAll
+const filterBox = document.querySelector('.filter-box');
+const header = document.querySelector('header');
 
 // Add event listener to the add task "+" button to open the add task dialog box if clicked.
 // added at the top since its always visible unlike dynamic task list items
@@ -52,6 +55,13 @@ addTaskBtn.addEventListener('click', () => {
 
 let editingTaskId = null; // null = add task, number = edit task
 let selectedGroup = null; // the name of the group currently being viewed, null if no group is selected
+let searchQuery = ''; // current search text, lowercase; '' means no search filter
+let statusFilter = 'all' // filter tasks by done status, 'all' means no status based filter ('ongoing', 'done')
+let priorityFilter = 'all'
+let draggedItem = null; // dragged task item to reorder
+let touchDragTimer = null;
+let touchStartPoint = null;
+let suppressTaskClick = false;
 
 // Return the unique groups that still have at least one unfinished task.
 function getActiveGroupNames() {
@@ -62,7 +72,7 @@ function getActiveGroupNames() {
   )].sort((first, second) => first.localeCompare(second));  // sort the group names alphabetically
 }
 
-// Show groups that belong to ongoing tasks, plus options to skip or add a group.
+// Show group options that belong to ongoing tasks, plus options to skip or add a group.
 function renderGroupOptions() {
   const selectedGroup = groupSelect.value;  // remember the user's selection so it can be restored after rebuilding the dropdown
   const activeGroups = getActiveGroupNames();
@@ -95,8 +105,9 @@ function renderGroupOptions() {
   groupSelect.value = validSelections.includes(selectedGroup) ? selectedGroup : '';
 }
 
-// Show group label buttons, or show the selected group's tasks with a way back.
+// Groups tab view, show group label buttons, or show the selected group's tasks with a way back.
 function renderGroupView() {
+
   const activeGroups = getActiveGroupNames();
   groupListContainer.replaceChildren(); // clear the group list container so it can be rebuilt with the current state of groups and tasks
 
@@ -109,15 +120,16 @@ function renderGroupView() {
     backButton.addEventListener('click', () => {
       selectedGroup = null;
       renderGroupView();  // recursively call renderGroupView() to show the group list again
+      updateFilterVisibility();
     });
 
-    // Show the selected group's name and its tasks.
+    // Otherwise show the selected group's name and its tasks.
     const heading = document.createElement('h3'); // create h3 heading in html file for the selected group name
     heading.textContent = selectedGroup;  // set the h3 heading text to the selected group name
 
     // create a <ul> to hold the tasks in the selected group and update html
     const taskList = document.createElement('ul');
-    const groupTasks = tasks.filter((task) => task.group === selectedGroup);  // get all tasks that belong to the selected group
+    const groupTasks = applyFilters(tasks.filter((task) => task.group === selectedGroup));  // get all tasks that belong to the selected group, then apply filters
     groupListContainer.append(backButton, heading, taskList);
     renderTasks(taskList, groupTasks);  // rendertasks is called before it is defined, but it will be hoisted to the top of the file so it can be used here
     return;
@@ -133,14 +145,24 @@ function renderGroupView() {
   }
   activeGroups.forEach((groupName) => {
     const groupButton = document.createElement('button'); // create a <button> for each group
+    const groupNameLabel = document.createElement('span');
+    const taskCountLabel = document.createElement('span');  // create new span element in HTML
+  
     groupButton.type = 'button';  // set the button type to "button" so it doesn't submit the form when clicked
-    groupButton.textContent = groupName;
+    groupButton.classList.add('group-button');
+
+    groupNameLabel.textContent = groupName;  // set button text
+    taskCountLabel.classList.add('group-task-count'); // add a class to the span element
+    // template literal converts no. tasks to string and adds " tasks" for display
+    taskCountLabel.textContent = `${tasks.filter((task) => task.group === groupName).length} tasks`;
+    groupButton.append(groupNameLabel, taskCountLabel);
     // when the user clicks a group button, set the selectedGroup to that group name and render the group view
     groupButton.addEventListener('click', () => {
       selectedGroup = groupName;
       renderGroupView();  // recursively call renderGroupView() to show the tasks in the selected group
+      updateFilterVisibility();
     });
-    groupListContainer.append(groupButton);
+    groupListContainer.append(groupButton); // add new elements to HTML container
   });
 }
 
@@ -168,15 +190,22 @@ function renderTasks(taskList, tasksToRender) {
   tasksToRender.forEach((task) => {
      // store task id and title in a data attribute VARIABLE so it can be used later to identify the task when the user clicks on it
     const listItem = document.createElement('li');
-    // set dataset attributes of each task
-    listItem.dataset.taskId = String(task.id);  // taskId is a variable that stores the task's id as a string so it can be used later to identify the task when the user clicks on it
+
+    // set dataset attributes of each task to be referenced when clicking a task
+    // NOTE data-* attribute can ONLY hold TEXT/STRINGS (e.g. converts null to "null")
+    listItem.dataset.taskId = String(task.id);  // convert int id to string for storage
     listItem.dataset.taskTitle = task.title;
+    listItem.dataset.priority = task.priority;
+
+    listItem.setAttribute('draggable', 'true'); // set up for reorder task feature
+    listItem.classList.add('task-item');  // label as a task item
+
+    // don't use these, since OPTIONAL fields can be null, so will be stored as literal "null" string in data-*
     /*listItem.dataset.taskDescription = task.description;
-    listItem.dataset.taskPriority = task.priority;
     listItem.dataset.taskGroup = task.group;
     listItem.dataset.taskDone = task.done;*/
 
-    // add the "done" class to the list item so it can be styled differently in CSS
+    // add a "done" class to the list item so it can be styled differently in CSS
     if (task.done) {
       listItem.classList.add('done');
       listItem.style.textDecoration = 'line-through';  // add a line-through style to the task title when it is marked as done
@@ -186,11 +215,11 @@ function renderTasks(taskList, tasksToRender) {
 
     //const label = document.createElement('label');  // create <label> element to hold checkbox and task title
     const doneCheckbox = document.createElement('input'); // create <input> element to hold checkbox for marking task as done
-    doneCheckbox.type = 'checkbox'; // set the input type to checkbox so it can be used to mark tasks as done
-    doneCheckbox.checked = task.done; // set the checkbox state to match the task's current done property
+    doneCheckbox.type = 'checkbox'; // set the input type to checkbox (built-in property)
+    doneCheckbox.checked = task.done; // set the checkbox state to match the task's current done property (T/F)
 
     // when user clicks checkbox, do 3 things
-    doneCheckbox.addEventListener('change', () => {
+    doneCheckbox.addEventListener('change', () => { // don't need an event, check box always toggles between 2 possibilities
       task.done = doneCheckbox.checked; // update the task's done property to match the checkbox state
       renderTaskViews();
       renderGroupOptions();
@@ -198,6 +227,10 @@ function renderTasks(taskList, tasksToRender) {
     });
 
     listItem.addEventListener('click', (event) => {
+      if (suppressTaskClick) {
+        event.preventDefault();
+        return;
+      }
       if (event.target === doneCheckbox) {  // if the user clicked the checkbox, don't open the dialog box
         return;
       }
@@ -206,28 +239,74 @@ function renderTasks(taskList, tasksToRender) {
     });
 
     const taskText = document.createElement('span');
-    // $ is js string formatting syntax
-    taskText.textContent = ` ${task.title} (${task.priority})`; // add a space before the task title so it doesn't run into the checkbox, and show the task's priority in parentheses
+    // ${} is js string formatting syntax
+    taskText.textContent = ` ${task.title}`; // add a space before the task title so it doesn't run into the checkbox, and show the task's priority in parentheses
     listItem.append(doneCheckbox, taskText);  // append the checkbox and task title to the list item so they are displayed together
 
     taskList.append(listItem);  // append the list item to the task list so it is displayed on the page
   });
 }
 
+/**
+ * Filters the task list based on the current search query and status filter.
+ * @returns {Array} A new array containing only the tasks that match both criteria.
+ * Takes ANY list to filter
+ */
+function applyFilters(taskList) { // use nearly anywhere you use tasks.filter to get a task list
+  return taskList.filter((task) => {
+    // 1. Check if the task matches the search query.
+    const matchesSearch = !searchQuery ||   // If there is no search query, it automatically matches (returns true).
+      [task.title, task.description ?? '']
+       // .some returns a boolean
+       // Otherwise, it checks if the title or description contains the query (case-insensitive).
+        .some((text) => text.toLowerCase().includes(searchQuery));
+
+    // 2. Check if the task matches the active status filter ('all', 'done', or 'todo').
+    // If the filter is set to 'all', every task matches.
+    // If 'done', it includes the task only if task.done is true.
+    // else it's 'ongoing', so it includes the task only if task.done is false.
+    const matchesStatus = statusFilter === 'all' || 
+      (statusFilter === 'done' ? task.done : !task.done);
+    // 3. Check if the task matches the active priority filter ('all', 'high', 'mid', or low).
+    // If task.priority contains the strings 'high', 'mid', or 'low', compare it directly with the selected filter:
+    const matchesPriority =
+    priorityFilter === 'all' || task.priority === priorityFilter;
+
+    // Only return the task if it passes all the search and status and priority filters
+    return matchesSearch && matchesStatus && matchesPriority;
+  });
+}
+
+function getVisibleTasks() {
+  // use global task list as param
+  return applyFilters(tasks);
+}
+
 // Filter the tasks for each tab, then use renderTasks to display each subset.
 function renderTaskViews() {
-  renderTasks(allTaskList, tasks);  // show all tasks in the "All" tab
+  // allTaskList = global list, getVisibleTasks displays by global query filter
+  renderTasks(allTaskList, getVisibleTasks());
   renderGroupView();  // show the group view in the "Groups" tab
 
-  Object.entries(priorityTaskLists).forEach(([priority, taskList]) => { // for each priority level, get the corresponding task list element and filter tasks by that priority
-    const priorityTasks = tasks.filter((task) => task.priority === priority); // get all tasks that match the current priority and store in an array
-    renderTasks(taskList, priorityTasks); // pass the array of tasks to renderTasks() to display them in the corresponding priority list
+  // for each priority level, get the corresponding task list element and filter tasks by that priority
+  Object.entries(priorityTaskLists).forEach(([priority, taskList], index) => {
+    const priorityTasks = applyFilters(tasks.filter((task) => task.priority === priority)); // filter the resulting list of tasks at each priority level and store in an array
+    // display no. tasks in each priority level
+    const priorityLabels = document.querySelectorAll(".priority-group-label");  // returns a node list
+    // replaced count on each render;
+    // // .length is a property not a function (so not .length())
+    if (priorityLabels[index]) {  // index is param in forEach loop, indices in node list
+      // 'text ${} text ' is like f string formatting
+      priorityLabels[index].textContent = `${priority}: ${priorityTasks.length} tasks`;
+    }
+    // pass the array of tasks to renderTasks() to display them in the corresponding priority list
+    renderTasks(taskList, priorityTasks);
   });
 }
 
 // Update the new group input field whenever the user changes the group selection.
 groupSelect.addEventListener('change', updateNewGroupInput);  // i.e. call function updateNewGroupInput() whenever the user changes the group selection in the dropdown
-newGroupInput.addEventListener('input', () => newGroupInput.setCustomValidity(''));
+newGroupInput.addEventListener('input', () => newGroupInput.setCustomValidity('')); // attach custom error message in HTML
 
 // actually CALLING functions to render page when it first loads, so user sees current state of tasks and groups.
 renderGroupOptions();
@@ -236,7 +315,7 @@ updateNewGroupInput();
 saveTasks();
 
 // Run this function whenever the user submits the task form.
-// use editingTaskId as a FLAG for edits - change instead of add new
+// use editingTaskId as a FLAG for EDIT or ADD form type
 taskForm.addEventListener('submit', (event) => {
   // Stop the browser from reloading the page when the form is submitted.
   event.preventDefault();
@@ -244,8 +323,10 @@ taskForm.addEventListener('submit', (event) => {
   // READ + VALIDATE
   // Read the values entered in the form by their name attributes.
   const formData = new FormData(taskForm);
-  // use ?? to provide a default value of '' if the form input is null or undefined, then trim whitespace from the string
-  const description = String(formData.get('description') ?? '').trim();
+  // Safely extract the string and fallback to an empty string if empty
+  // Uses Logical OR (||): Using || instead of ?? checks for all falsy values.
+  // If formData.get() returns null, undefined, or an empty string "", it immediately swaps it for your fallback ''
+  const description = (formData.get('description') || '').toString().trim();
   const groupName = groupSelect.value === addNewGroupValue
     ? newGroupInput.value.trim()  // if the user selected "Add new group...", use the value from the new group input, otherwise use the value from the group dropdown
     : groupSelect.value;
@@ -295,21 +376,29 @@ taskForm.addEventListener('submit', (event) => {
 // Listen for clicks on the tab buttons and switch the visible tab.
 
 // Find the tab buttons and task tabs in index.html to respond to buttons and update page.
-const tabButtons = document.querySelectorAll('.tab-buttons button[data-tab]');
-const taskTabs = document.querySelectorAll('.task-tab');
+const tabButtons = document.querySelectorAll('.tab-buttons button[data-tab]');  // get all buttons with class .tab-buttons and data-tab attribute
+const taskTabs = document.querySelectorAll('.task-tab');  // returns a node-list
 function showTab(button) 
 {
-  const targetTabId = button.dataset.tab; // Get id of tab to make visible from button's data-tab attribute
-  const targetTab = document.getElementById(targetTabId);
+  const targetTabId = button.dataset.tab; // Get id of current tab to make visible from button's data-tab attribute
+  const targetTab = document.getElementById(targetTabId); // current visible tab from user selection
 
   taskTabs.forEach((tab) => {
-    tab.hidden = (tab !== targetTab); // when tab is not the target tab, set tab to hidden, otherwise show it
-  });
+    tab.hidden = (tab !== targetTab); // when a tab is not the target tab, set tab to hidden, otherwise show it
+    updateFilterVisibility();
+    });
   tabButtons.forEach((tabButton) => {
     // .toggle adds it if missing, removes it if present
     // add '.active' class to the clicked <button> to display and remove it from others to hide (modify html)
     tabButton.classList.toggle('active', tabButton === button);
   });
+}
+
+function updateFilterVisibility() {
+  // boolean, group view page visible T/F
+  const groupOverview = !document.getElementById('tab-groups').hidden && selectedGroup === null;
+  filterBox.style.display = groupOverview ? 'none' : '';  // hide filter option on group view when no tasks are visible (boolean statement)
+  header.style.marginBottom = groupOverview ? '5%' : '';  // add a margin if filter is hidden for better spacing
 }
 
 // Add click event listeners to each tab button to show the corresponding tab when clicked.
@@ -370,7 +459,7 @@ function setupTaskOptionsDialog() {
       return;
     }
     // Ask the user to confirm the deletion of the task. If they cancel, do nothing.
-    const confirmed = window.confirm('Delete this task?');  // browser built-in confirm window
+    const confirmed = window.confirm('Delete this task? Cannot be undone.');  // browser built-in confirm window
     if (!confirmed) {
       return;
     }
@@ -382,11 +471,13 @@ function setupTaskOptionsDialog() {
       return;
     }
 
+    // .splice modifies ORIGINAL array in place
     tasks.splice(currTaskIndex, 1); // remove the 1 deleted task from the tasks array
 
     saveTasks();
     renderTaskViews();
     renderGroupOptions();
+    updateFilterVisibility();
     taskOptions.close();  // close the dialog box after deleting the task
   });
 
@@ -407,12 +498,41 @@ function setupTaskOptionsDialog() {
 function openOptionsDialog(event) {
   const taskOptions = document.getElementById('task-options');
   const clickedTaskTitle = document.getElementById('clicked-task-title');
-  // If any of the elements are missing, do nothing.
+  const clickedTaskDescription = document.getElementById('clicked-task-description');
+  const clickedTaskGroup = document.getElementById('clicked-task-group');
+  // If any of the required elements are missing, do nothing.
   if (!taskOptions || !clickedTaskTitle) {
     return;
   }
 
-  clickedTaskTitle.textContent = event.currentTarget.dataset.taskTitle; // set visible text
+  // set visible text
+  clickedTaskTitle.textContent = event.currentTarget.dataset.taskTitle;
+
+  // Use stored id of current task in data attribute to get description (event is current task)
+  const currTaskId = Number(event.currentTarget.dataset.taskId);  // convert id back into int from string in data- attribute storage
+  const currTask = tasks.find((task) => task.id === currTaskId);  // search global array with id to get task object
+  if (currTask === undefined) return;
+
+  const taskDesc = currTask.description;  // this avoids a null value being converted to a string from running it through data- attribute
+  const taskGroup = currTask.group;
+  console.log('desc:', taskDesc, 'for', currTask);
+  // do not show null if there is no description
+  if ( taskDesc === null || taskDesc == '') {
+    clickedTaskDescription.style.display = "none";
+    clickedTaskDescription.textContent = '';
+  } else {  // only set description text if not empty
+    clickedTaskDescription.style.display = '';  // undo previous hide styles
+    clickedTaskDescription.textContent = taskDesc;
+  }
+
+  // do not show null if there is no group label
+  if ( taskGroup === null || taskGroup == '') {
+    clickedTaskGroup.style.display = "none";
+    clickedTaskGroup.textContent = '';
+  } else {  // only set description text if not empty
+    clickedTaskGroup.style.display = '';  // undo previous hide styles
+    clickedTaskGroup.textContent = taskGroup;
+  }
   // data attribute was defined in renderTasks() when the list item was created, so it can be used here to identify the task when the user clicks on it
   taskOptions.dataset.taskId = event.currentTarget.dataset.taskId;  // store task id in dialog box's data attribute so it can be used later to identify the task when the user clicks on it
   taskOptions.showModal();
@@ -432,25 +552,212 @@ function setupAddTaskDialog() {
 }
 
 // Open the dialog box when the user clicks on add task "+" button
+// parameter currTask is only used when user wants to edit
 function openAddTask(currTaskId = null) {
   const addTask = document.getElementById('add-task-dialog');
+  const submitButton = document.getElementById('submit-btn');
+  const formTitle = document.getElementById('add/edit-form-title');
 
   if (currTaskId !== null) {  // make edit task dynamic changes to form
+    // search global task list for matching id to current task id
     const currTask = tasks.find((task) => task.id === currTaskId);
     if (currTask === undefined) return;
 
-    editingTaskId = currTaskId; // edit task id
-    document.getElementById('submit-btn').textContent = 'Save Changes';
-    document.getElementById('add/edit-form-title').textContent = 'Edit Task';
+    editingTaskId = currTaskId; // set global flag for EDIT branch
+    submitButton.textContent = 'Save Changes';
+    formTitle.textContent = 'Edit Task';
 
     renderGroupOptions();         // so the group option exists before selecting it
-    // set input fields to current task info
+    // set input fields to current task info for editing
     document.getElementById('title').value = currTask.title;
+    // set to '' null if no input provided
     document.getElementById('description').value = currTask.description ?? '';
     document.getElementById('priority').value = currTask.priority;
-    document.getElementById('group').value = currTask.group ?? '';
+    groupSelect.value = currTask.group ?? '';
+  } else {
+    editingTaskId = null; // set global flag to ADD task branch
+    taskForm.reset();
+    renderGroupOptions();
+    groupSelect.value = '';
+    submitButton.textContent = 'Add Task';
+    formTitle.textContent = 'Add Task';
   }
+
+  updateNewGroupInput();
   // open pop up and set keyboard directly to first input field
   addTask.showModal();
   document.getElementById('title').focus();
 }
+
+// search functionality
+const toggleSearchBtn = document.getElementById('toggle-search');
+const searchBox = document.getElementById('search');
+const searchInput = document.getElementById('search-input');
+
+// Clicking the icon opens or closes the search box.
+toggleSearchBtn.addEventListener('click', () => {
+  searchBox.classList.toggle('open'); // dynamically add or remove class label 'open'
+
+  if (searchBox.classList.contains('open')) {
+    searchBox.style.display = ''; // i.e. style="display:none" is inline CSS
+    showTab(tabButtons[0]);   // always go to All tab as soon as search opens
+    searchInput.focus();
+  } else {
+    // closing search: clear the filter and show every task again
+    searchInput.value = '';
+    searchQuery = ''; // reset global const/filter
+    searchBox.style.display = 'none';
+    showTab(tabButtons[0]);
+    renderTaskViews();
+  }
+});
+
+// Filter LIVE as the user types using event 'input' (doesn't require submission)
+searchInput.addEventListener('input', () => {
+  searchQuery = searchInput.value.trim().toLowerCase(); // set global query/filter const
+  showTab(tabButtons[0]); // make sure user is on ALL tab view
+  renderTaskViews();
+});
+
+// Filter by done/ongoing tasks
+const filterDropdown = document.getElementById('status-filter');
+filterDropdown.addEventListener('change', (event) => { //  'change' detects when user clicks a different drop-down option, event = optino chosen
+  statusFilter = event.target.value;  // set filter value to all/ongoing/done dropdown option chosen
+  renderTaskViews();
+});
+
+// Filter by priority on any tab
+const priorityFilterDropdown = document.getElementById('priority-filter');
+priorityFilterDropdown.addEventListener('change', (event) => { //  'change' detects when user clicks a different drop-down option, event = optino chosen
+  priorityFilter = event.target.value;  // set filter value to priority dropdown option chosen
+  renderTaskViews();
+});
+
+// Drag and reorder tasks feature - mouse based functionality
+
+// 1. Track which item is being dragged
+allTaskList.addEventListener('dragstart', (event) => {
+  const taskItem = event.target.closest('.task-item');
+  if (!taskItem) return;
+  draggedItem = taskItem;
+  setTimeout(() => taskItem.classList.add('dragging'), 0);
+});
+
+// 2. Handle the reordering calculation when dragging over items
+allTaskList.addEventListener('dragover', (event) => {
+  event.preventDefault(); // needed for parent container to handle dropping
+  reorderTaskAt(event.target.closest('.task-item'), event.clientY);
+});
+
+// 3. Clean up styles when a desktop drag ends.
+allTaskList.addEventListener('dragend', (event) => {
+  const taskItem = event.target.closest('.task-item');
+  if (!taskItem) return;
+  taskItem.classList.remove('dragging');
+  draggedItem = null;
+  saveOrderFromDom();
+});
+
+
+/*
+ * Touch reordering supplements the HTML drag-and-drop handlers above, because
+ * mobile browsers do not consistently generate those events for finger input.
+ * Requiring a brief hold distinguishes a deliberate drag from a normal scroll.
+ */
+
+allTaskList.addEventListener('touchstart', (event) => {
+  // Only start a reorder gesture for ONE finger; multi-touch is left to the browser.
+  if (event.touches.length !== 1) return;
+
+  // Ignore touches outside task rows and on checkboxes, which have their own action.
+  const taskItem = event.target.closest('.task-item');
+  if (!taskItem || event.target.closest('input')) return;
+
+  // Remember the initial position so touchmove can tell a hold from a scroll.
+  const touch = event.touches[0];
+  touchStartPoint = { x: touch.clientX, y: touch.clientY };
+
+  // Start dragging only after the finger remains mostly still for 250 ms.
+  // The timer is cancelled below if the user starts moving first.
+  touchDragTimer = setTimeout(() => {
+    draggedItem = taskItem;
+    taskItem.classList.add('dragging');
+  }, 250);
+}, { passive: true }); // A passive start listener never blocks native scrolling.
+
+allTaskList.addEventListener('touchmove', (event) => {
+  if (!draggedItem) {
+    // Before the hold completes, treat movement as scrolling. Cancel the pending
+    // drag once the finger moves more than 8 px from where the touch began.
+    if (touchDragTimer && touchStartPoint && event.touches.length) {
+      const touch = event.touches[0];
+      if (Math.hypot(touch.clientX - touchStartPoint.x, touch.clientY - touchStartPoint.y) > 8) {
+        clearTimeout(touchDragTimer);
+        touchDragTimer = null;
+        touchStartPoint = null;
+      }
+    }
+    return;
+  }
+
+  // Once dragging, prevent the page from scrolling and find the row currently
+  // underneath the finger. elementFromPoint works even when the finger is over
+  // a child element such as the task title or checkbox.
+  event.preventDefault();
+  const touch = event.touches[0];
+  const target = document.elementFromPoint(touch.clientX, touch.clientY);
+  reorderTaskAt(target?.closest('.task-item'), touch.clientY);
+}, { passive: false }); // Must be non-passive so preventDefault() can stop scrolling.
+
+// Both lifting the finger and the browser cancelling a touch end the gesture.
+allTaskList.addEventListener('touchend', finishTouchDrag);
+allTaskList.addEventListener('touchcancel', finishTouchDrag);
+
+// Move the dragged row before or after the row under the pointer/finger,
+// choosing the insertion side based on that row's vertical midpoint.
+function reorderTaskAt(targetTask, clientY) {
+  if (!targetTask || !draggedItem || targetTask === draggedItem) return;
+  const bounding = targetTask.getBoundingClientRect();
+  if (clientY > bounding.y + bounding.height / 2) {
+    targetTask.after(draggedItem);
+  } else {
+    targetTask.before(draggedItem);
+  }
+}
+
+// Clear gesture state after touch end/cancel. If a drag actually started,
+// persist the resulting DOM order and suppress the synthetic click that some
+// mobile browsers emit after a completed touch gesture.
+function finishTouchDrag() {
+  if (touchDragTimer) clearTimeout(touchDragTimer);
+  touchDragTimer = null;
+  touchStartPoint = null;
+  if (!draggedItem) return; // No hold completed, so there is no reorder to save.
+
+  draggedItem.classList.remove('dragging');
+  draggedItem = null;
+  suppressTaskClick = true;
+  setTimeout(() => { suppressTaskClick = false; }, 500);
+  saveOrderFromDom();
+}
+
+// update array with new order before saving to localStorage for peristence
+function saveOrderFromDom() {
+  // node list of the NEW order of tasks - taken from reordered HTML
+  // use ... to push into ARRAY to apply map methods
+  const newOrder = [...allTaskList.querySelectorAll('.task-item')]
+  .map((li) => Number(li.dataset.taskId));  // array of ids in the new updated order
+  // next, split newOrder into hidden and visible tasks - 2 new arrays
+  // keep tasks hidden by any filters untouched, not affected by reordering
+  const hiddenTasks = tasks.filter((task) => !newOrder.includes(task.id));
+
+  // visibile tasks, look up by id in the new order
+  // map creates new array without mutating original
+  const reorderedTasks = newOrder.map((id) => tasks.find((task) => task.id === id));
+
+  // replace entire old task array in place (from index 0 to the end), so maintain original array reference
+  tasks.splice(0, tasks.length, ...reorderedTasks, ...hiddenTasks);
+
+    saveTasks();
+    renderTaskViews();
+  }

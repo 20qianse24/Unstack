@@ -7,7 +7,7 @@
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <meta name="apple-mobile-web-app-title" content="Unstack">
     <title>Unstack</title>
-    <link type="text/css" rel="stylesheet" href="/static/css/styles.css">
+    <link type="text/css" rel="stylesheet" href="./static/css/styles.css">
     <script src="app.js" defer></script>
     <link rel="manifest" href="manifest.json" />
     <!--App icon credit to https://www.flaticon.com/free-icon/sticky-note_9099135, allowing free personal and commercial use with credit-->
@@ -35,9 +35,28 @@
         <svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="M20 20l-4-4"/></svg>
       </button>
     </header>
+    <!--Search input box, hidden until toggled open-->
+    <div id="search" style='display: none'>
+      <input type="search" id="search-input" placeholder="Search tasks">
+    </div>
 
-    <!--Task viewing tabs-->
     <main>
+      <!--Drop down filter options-->
+      <div class="filter-box">
+        <h4>Filter by:</h4>
+        <select id="status-filter">
+          <option value="all">All</option>
+          <option value="ongoing">Ongoing</option>
+          <option value="done">Done</option>
+        </select>
+        <select id="priority-filter">
+          <option value="all">All Priorities</option>
+          <option value="high">High</option>
+          <option value="mid">Mid</option>
+          <option value="low">Low</option>
+        </select>
+      </div>
+      <!--Task viewing tabs-->
       <!--All tasks-->
       <section class="task-tab" id="tab-all">
         <h2 id="tasks-heading">All</h2>
@@ -55,12 +74,15 @@
       <section class="task-tab" id="tab-priorities">
         <h2 id="tasks-heading">Priorities</h2>
         <div class="priority-section" id="high-priority">
+          <h4 class="priority-group-label">High: </h4>
           <ul id="high-priorities-task-list"></ul>
         </div>
         <div class="priority-section" id="mid-priority">
+          <h4 class="priority-group-label">Medium: </h4>
           <ul id="mid-priorities-task-list"></ul>
         </div>
-        <div class="priority-section" id="low-priority">  
+        <div class="priority-section" id="low-priority">
+          <h4 class="priority-group-label">Low: </h4>
           <ul id="low-priorities-task-list"></ul>
         </div>
       </section>
@@ -83,7 +105,11 @@
         <!--Get description/extra notes-->
           <div class ="form-group">
             <div class ="form-label"><label for="description">Extra Notes:</label></div>
-            <div class ="form-element"><input type="text" name="description" id="description" placeholder="Enter extra notes..."></div>
+            <div class ="form-element">
+              <!--teaxtarea allows multiple lines of text, rows="3" means 3 rows of visibility when typing NOT a limit-->
+              <!--Note that unlike input, textarea is NOT a self closing tag-->
+              <textarea name="description" id="description" placeholder="Enter extra notes..." rows="3"></textarea>
+            </div>
           </div>
         <!--Get priority label-->
           <div class ="form-group">
@@ -117,6 +143,8 @@
     <dialog id="task-options">
       <button id="close-window">X</button>
       <h4 id="clicked-task-title"></h4>
+      <p id="clicked-task-description"></p>
+      <p id="clicked-task-group"></p>
       <button id="edit-btn">Edit</button>
       <button id="delete-btn">Delete</button>
     </dialog>
